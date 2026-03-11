@@ -1,0 +1,118 @@
+name: Deploy to Remote Server on Push
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  deploy:
+    name: Deploy Python Application
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to Remote Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          command_timeout: 30m
+          script: |
+            set -e
+            echo "🚀 Starting deployment process..."
+            echo "📍 Target directory: ${{ secrets.REMOTE_PROJECT_PATH }}"
+            
+            # Repositorio
+            if [ -z "${{ secrets.REMOTE_PROJECT_PATH }}" ]; then
+              echo "❌ ERROR: REMOTE_PROJECT_PATH secret is not set!"
+              exit 1
+            fi
+            
+            if [ -d "${{ secrets.REMOTE_PROJECT_PATH }}/.git" ]; then
+              echo "📁 Updating existing repository..."
+              cd "${{ secrets.REMOTE_PROJECT_PATH }}"
+              git fetch --all
+              git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
+              git reset --hard origin/${{ github.ref_name }}
+            else
+              echo "📁 Cloning repository for the first time..."
+              PARENT_DIR=$(dirname "${{ secrets.REMOTE_PROJECT_PATH }}")
+              mkdir -p "$PARENT_DIR"
+              
+              REPO_URL="${{ secrets.REPOSITORY_URL }}"
+              if [ -n "${{ secrets.REPOSITORY_GITHUB_TOKEN }}" ]; then
+                REPO_URL=$(echo "${{ secrets.REPOSITORY_URL }}" | sed "s|https://|https://${{ secrets.REPOSITORY_GITHUB_TOKEN }}@|")
+              fi
+              
+              git clone "$REPO_URL" "${{ secrets.REMOTE_PROJECT_PATH }}"
+              cd "${{ secrets.REMOTE_PROJECT_PATH }}"
+              git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
+            fi
+            
+            echo "✅ Setup complete at: $(pwd)"
+            
+            # Setup environment variable
+            echo "🔐 Configuring environment (.env) files..."
+            rm -f .env
+            cat > .env << 'ENV_EOF'
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }}
+            MAILCHIMP_API_KEY=${{ secrets.MAILCHIMP_API_KEY }}
+            MAILCHIMP_SERVER_PREFIX=${{ secrets.MAILCHIMP_SERVER_PREFIX }}
+            MAILCHIMP_LIST_ID=${{ secrets.MAILCHIMP_LIST_ID }}
+            TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }}
+            TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }}
+            TWILIO_PHONE_NUMBER=${{ secrets.TWILIO_PHONE_NUMBER }}
+            TO_PHONE_NUMBER=${{ secrets.TO_PHONE_NUMBER }}
+            SMTP_SERVER=${{ secrets.SMTP_SERVER }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            TO_EMAIL=${{ secrets.TO_EMAIL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            ENV_EOF
+            
+            # Instalando o verificando uv (Python dependency manager)
+            export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+            if ! command -v uv > /dev/null; then
+              echo "📦 Installing 'uv'..."
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+            fi
+            
+            echo "📦 Syncing dependencies..."
+            uv sync
+            
+            # Parar la aplicación que pudiese estar corriendo en el puerto 7860
+            echo "🛑 Stopping existing application on port 7860..."
+            APP_PID=$(lsof -ti:7860 2>/dev/null || true)
+            if [ -n "$APP_PID" ]; then
+              kill -15 $APP_PID 2>/dev/null || true
+              sleep 2
+              kill -9 $APP_PID 2>/dev/null || true
+              echo "   ✅ Application stopped."
+            fi
+            
+            # Iniciar la aplicación
+            echo "🚀 Starting new application in the background..."
+            nohup uv run app.py > server.log 2>&1 &
+            NEW_PID=$!
+            
+            echo "⏳ Waiting for Gradio to start (10s)..."
+            sleep 10
+            
+            # Check si sigue corriendo
+            if ps -p $NEW_PID > /dev/null; then
+              echo "✨ Application deployed successfully! PID: $NEW_PID"
+            else
+              echo "❌ Application failed to start. Reviewing start logs:"
+              tail -n 30 server.log
+              exit 1
+            fi
+            
+            echo "✅ Deployment pipeline completed."
