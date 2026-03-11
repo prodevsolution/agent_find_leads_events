@@ -83,7 +83,7 @@ def extract_date_from_text(text: str) -> datetime:
     # For a real production system, consider using an LLM to extract the exact date
     # from the raw text instead of relying strictly on heuristics.
     # Here, we will just use dateutil on promising looking strings or return None.
-    # We will rely on the Scraper Node (Agent) to use Gemini to extract the date from the text instead.
+    # We will rely on the Scraper Node (Agent) to use OpenAI to extract the date from the text instead.
     pass # This will be handled by the LLM in the chain
 
 @tool

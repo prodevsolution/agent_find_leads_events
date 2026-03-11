@@ -3,7 +3,7 @@ import logging
 from typing import TypedDict, Annotated, List, Any
 from datetime import datetime, timezone
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel, Field
@@ -44,9 +44,11 @@ class GraphState(TypedDict):
     marketed_leads: Annotated[list[str], operator.add]
     notifications_sent: bool
 
+from langchain_openai import ChatOpenAI
+
 # --- LLM ---
 def get_llm():
-    return ChatGoogleGenerativeAI(model="gemini-2.0-flash") # or gemini-2.0-flash
+    return ChatOpenAI(model="gpt-4o-mini")
 
 # --- Nodes ---
 def searcher_node(state: GraphState):

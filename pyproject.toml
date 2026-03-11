@@ -10,6 +10,7 @@ dependencies = [
     "gradio>=6.9.0",
     "langchain>=1.2.11",
     "langchain-google-genai>=4.2.1",
+    "langchain-openai>=1.1.11",
     "langgraph>=1.1.0",
     "mailchimp3>=3.0.21",
     "python-dotenv>=1.2.2",

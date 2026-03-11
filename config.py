@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# GEMINI 2.0 API KEY
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# OPENAI API KEY
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # TAVILY API KEY FOR SEARCH
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")

@@ -1,6 +1,6 @@
 # Event Prospecting Multi-Agent System
 
-Automatically search, discover, and build a potential lead database for specific events across various niches. This project uses a LangGraph-powered multi-agent system combined with Gemini 2.0 Flash to find events, scrape organizing entities' data, and send updates and notifications.
+Automatically search, discover, and build a potential lead database for specific events across various niches. This project uses a LangGraph-powered multi-agent system combined with OpenAI gpt-4o-mini to find events, scrape organizing entities' data, and send updates and notifications.
 
 It includes an automated scheduler (APScheduler) for recurrent executions and a Gradio web interface for tracking campaign performance and status.
 
@@ -30,7 +30,7 @@ It includes an automated scheduler (APScheduler) for recurrent executions and a 
 The system needs various keys and parameters to function properly. Configure the following variables in your `.env` file:
 
 ### API Keys
-- `GEMINI_API_KEY`: The API key for Google's Gemini models (mandatory for the primary reasoning engine).
+- `OPENAI_API_KEY`: The API key for OpenAI's models (mandatory for the primary reasoning engine).
 - `TAVILY_API_KEY`: API key for Tavily search (used by agents to run web searches).
 
 ### Mailchimp (For marketing outreach)
