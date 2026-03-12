@@ -159,7 +159,11 @@ def db_manager_node(state: GraphState):
         # Insert into DB
         db_lead = repository.add_lead(lead_dict)
         if db_lead:
-            saved_leads_info.append({"email": db_lead.email, "name": db_lead.name})
+            saved_leads_info.append({
+                "email": db_lead.email, 
+                "name": db_lead.name,
+                "event_url": lead_dict["event_url"]
+            })
             
     return {"saved_leads": saved_leads_info}
 
@@ -170,11 +174,12 @@ def marketing_node(state: GraphState):
     
     for lead_info in state.get("saved_leads", []):
         email = lead_info["email"]
+        event_url = lead_info.get("event_url", "")
         name_parts = (lead_info["name"] or "").split(" ")
         first_name = name_parts[0] if name_parts else ""
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
         
-        success = add_lead_to_mailchimp(email, first_name, last_name)
+        success = add_lead_to_mailchimp(email, first_name, last_name, event_url)
         if success:
             repository.update_lead_status(email, status='marketed', campaign_sent=True)
             marketed_emails.append(email)

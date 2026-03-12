@@ -147,7 +147,7 @@ def refresh_dashboard():
     
     # Formatting for Grid
     recent_leads_data = [
-        [lead.name or "N/A", lead.email, lead.event_name or "N/A", lead.status] 
+        [lead.name or "N/A", lead.email, lead.event_name or "N/A", lead.event_url or "N/A", lead.status] 
         for lead in leads
     ]
     
@@ -257,12 +257,12 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
             
         with gr.Column():
             gr.Markdown("### 👥 Recent Leads (Top 10)")
-            leads_table = gr.Dataframe(
-                headers=["Name", "Email", "Event", "Status"],
-                datatype=["str", "str", "str", "str"],
-                col_count=(4, "fixed"),
-                interactive=False
-            )
+        leads_table = gr.Dataframe(
+            headers=["Name", "Email", "Event", "Address", "Status"],
+            datatype=["str", "str", "str", "str", "str"],
+            column_count=(5, "fixed"),
+            interactive=False
+        )
             refresh_btn = gr.Button("Refresh Dashboard")
 
     # Wire up events

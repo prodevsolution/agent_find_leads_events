@@ -125,7 +125,7 @@ def scrape_event_page(url: str) -> dict:
 
 
 # --- Mailchimp Tool ---
-def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "") -> bool:
+def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "", event_url: str = "") -> bool:
     """
     Adds a lead to Mailchimp. In a real scenario, we might trigger a specific journey
     which contains the 'Eventra' template.
@@ -153,6 +153,17 @@ def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "")
                 'LNAME': last_name,
             }
         }
+
+        # If we have an event URL, add it to the Address field in Mailchimp
+        # We use addr1 in the ADDRESS object as it's the primary way to store a string as an address
+        if event_url:
+            data['merge_fields']['ADDRESS'] = {
+                'addr1': event_url,
+                'city': '', 
+                'state': '',
+                'zip': '',
+                'country': ''
+            }
         
         # Add to list using PUT (create_or_update)
         # 1. 'subscribed' status bypasses double opt-in confirmation emails.
