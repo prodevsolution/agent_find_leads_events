@@ -56,7 +56,13 @@ jobs:
             
             echo "✅ Setup complete at: $(pwd)"
             
+            # Configurar e instalar Ollama y Phi-4 Mini
+            echo "🦙 Installing Ollama and pulling Phi-4 Mini..."
+            chmod +x scripts/install_ollama_linux.sh
+            ./scripts/install_ollama_linux.sh
+            
             # Setup environment variable
+
             echo "🔐 Configuring environment (.env) files..."
             rm -f .env
             cat > .env << 'ENV_EOF'
