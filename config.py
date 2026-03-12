@@ -30,3 +30,6 @@ TO_EMAIL = os.getenv("TO_EMAIL")
 
 # DATABASE
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///leads.db")
+
+# DYNAMIC NICHES (Comma separated list)
+EXTRA_NICHES = os.getenv("EXTRA_NICHES", "")

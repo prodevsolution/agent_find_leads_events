@@ -9,6 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from database import repository
 from graph import app_graph
+from config import EXTRA_NICHES
 
 # Configure logging
 logging.basicConfig(
@@ -23,10 +24,43 @@ LAST_RUN = "Never"
 NEXT_RUN = "Pending..."
 
 # Default search configurations
-niches = [
-    "Circus", "Concerts", "Theater", "Community Events", "Festivals", 
-    "Street Fairs", "Cultural Events", "Outdoor Events", "Carnivals", "Agricultural Shows"
+DEFAULT_NICHES = [
+    "Circus productions", "Touring theater", "Magic shows", "Ice shows",
+    "Touring musical productions", "County fairs", "State fairs", "Agricultural shows"
 ]
+
+def get_initial_niches():
+    """Combines default niches with those from environment variables."""
+    n_list = [n.strip() for n in DEFAULT_NICHES]
+    if EXTRA_NICHES:
+        extra = [n.strip() for n in EXTRA_NICHES.split(",") if n.strip()]
+        for e in extra:
+            if e.lower() not in [x.lower() for x in n_list]:
+                n_list.append(e)
+    return sorted(n_list, key=str.lower)
+
+# Active niches state (managed at runtime)
+active_niches = get_initial_niches()
+
+def add_niche(niche_name: str):
+    """Adds a new niche to the active list if it doesn't already exist (lexicographically)."""
+    global active_niches
+    niche_name = niche_name.strip()
+    if not niche_name:
+        return active_niches
+    
+    current_lower = [n.lower() for n in active_niches]
+    if niche_name.lower() not in current_lower:
+        active_niches.append(niche_name)
+        active_niches = sorted(active_niches, key=str.lower)
+    return active_niches
+
+def remove_niche(niche_name: str):
+    """Removes a niche from the active list."""
+    global active_niches
+    if niche_name in active_niches:
+        active_niches.remove(niche_name)
+    return active_niches
 
 def format_date(dt: datetime) -> str:
     """Format datetime to ISO 8601 string part (YYYY-MM-DD)."""
@@ -59,7 +93,7 @@ def run_agent_workflow(override_start=None, override_end=None):
         end_date = override_end
         
     # Construct base queries
-    queries = [f"{niche} events" for niche in niches]
+    queries = [f"{n_name} events" for n_name in active_niches]
 
     initial_state = {
         "search_queries": queries,
@@ -143,6 +177,18 @@ def manual_trigger(start_date_ui, end_date_ui):
     
     return "Workflow triggered manually. Refresh dashboard to see updates.", refresh_dashboard()
 
+def ui_add_niche(new_niche):
+    if not new_niche:
+        return gr.update(choices=active_niches), "Please enter a niche name."
+    updated = add_niche(new_niche)
+    return gr.update(choices=updated, value=new_niche), f"Niche '{new_niche}' added successfully."
+
+def ui_remove_niche(selected_niche):
+    if not selected_niche:
+        return gr.update(choices=active_niches), "Please select a niche to remove."
+    updated = remove_niche(selected_niche)
+    return gr.update(choices=updated, value=None), f"Niche '{selected_niche}' removed successfully."
+
 
 with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     gr.Markdown("# 🚀 Event Prospecting Multi-Agent System")
@@ -176,6 +222,20 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
             )
             refresh_btn = gr.Button("Refresh Dashboard")
 
+        with gr.Column():
+            gr.Markdown("### 📂 Manage Niches")
+            niche_list_ui = gr.Dropdown(
+                choices=active_niches, 
+                label="Current Niches (Select one to remove)", 
+                interactive=True
+            )
+            remove_niche_btn = gr.Button("Remove Selected Niche", variant="secondary")
+            new_niche_input = gr.Textbox(label="Add New Niche", placeholder="e.g. Tech Conferences")
+            add_niche_btn = gr.Button("Add Niche")
+            add_niche_status = gr.Markdown("")
+            
+            gr.Markdown("> [!NOTE]\n> Changes to niches are applied to the next run.")
+
     # Wire up events
     refresh_btn.click(
         fn=refresh_dashboard,
@@ -201,6 +261,18 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     )
 
     demo.load(refresh_dashboard, None, [status_panel, stats_panel, leads_table])
+    
+    add_niche_btn.click(
+        fn=ui_add_niche,
+        inputs=[new_niche_input],
+        outputs=[niche_list_ui, add_niche_status]
+    )
+    
+    remove_niche_btn.click(
+        fn=ui_remove_niche,
+        inputs=[niche_list_ui],
+        outputs=[niche_list_ui, add_niche_status]
+    )
 
 
 if __name__ == "__main__":
