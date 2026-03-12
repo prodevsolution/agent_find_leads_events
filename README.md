@@ -1,6 +1,7 @@
 # Event Prospecting Multi-Agent System
 
-Automatically search, discover, and build a potential lead database for specific events across various niches. This project uses a LangGraph-powered multi-agent system combined with OpenAI gpt-4o-mini to find events, scrape organizing entities' data, and send updates and notifications.
+Automatically search, discover, and build a potential lead database for specific events across various niches. This project uses a LangGraph-powered multi-agent system combined with OpenAI (gpt-4o-mini) or local LLM (Ollama with Phi-4 Mini) to find events, scrape organizing entities' data, and send updates and notifications.
+
 
 It includes an automated scheduler (APScheduler) for recurrent executions and a Gradio web interface for tracking campaign performance and status.
 
@@ -30,8 +31,15 @@ It includes an automated scheduler (APScheduler) for recurrent executions and a 
 The system needs various keys and parameters to function properly. Configure the following variables in your `.env` file:
 
 ### API Keys
-- `OPENAI_API_KEY`: The API key for OpenAI's models (mandatory for the primary reasoning engine).
+- `OPENAI_API_KEY`: The API key for OpenAI's models (mandatory if `LLM_PROVIDER=openai`).
 - `TAVILY_API_KEY`: API key for Tavily search (used by agents to run web searches).
+
+### LLM Options (OpenAI vs. Ollama)
+You can choose between using OpenAI's cloud API or a local LLM via Ollama.
+- `LLM_PROVIDER`: Set to `openai` (default) or `ollama`.
+- `OLLAMA_BASE_URL`: The URL where Ollama is running (default: `http://localhost:11434`).
+- `OLLAMA_MODEL`: The model name to use (recommended: `phi4-mini`).
+
 
 ### Mailchimp (For marketing outreach)
 - `MAILCHIMP_API_KEY`: Your Mailchimp marketing API key.
@@ -53,6 +61,32 @@ The system needs various keys and parameters to function properly. Configure the
 
 ### Database
 - `DATABASE_URL`: Connection string for SQLAlchemy (defaults to `sqlite:///leads.db`).
+
+## Using Local LLM (Ollama)
+
+This project supports using [Ollama](https://ollama.com/) with the **Phi-4 Mini** Small Language Model (SLM) as an alternative to OpenAI.
+
+### Installation
+
+To set up Ollama and pull the required model, we provide automated scripts in the `scripts/` directory:
+
+**For Linux:**
+```bash
+chmod +x scripts/install_ollama_linux.sh
+./scripts/install_ollama_linux.sh
+```
+
+**For Windows (PowerShell):**
+```powershell
+.\scripts\install_ollama_windows.ps1
+```
+
+Once installed, ensure your `.env` file reflects the change:
+```env
+LLM_PROVIDER=ollama
+OLLAMA_MODEL=phi4-mini
+```
+
 
 ## Running the Application
 

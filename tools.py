@@ -136,13 +136,17 @@ def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "")
         return False
         
     try:
+        import hashlib
         client = MailChimp(mc_api=MAILCHIMP_API_KEY, mc_user='anystring')
         # Setting server prefix directly is not supported in init of mailchimp3 sometimes, 
         # but depends on key format. Let's construct standard request if library fails.
         # Actually mailchimp3 figures out server from api key usually.
         
+        subscriber_hash = hashlib.md5(email.lower().encode()).hexdigest()
+        
         data = {
             'email_address': email,
+            'status_if_new': 'subscribed',
             'status': 'subscribed',
             'merge_fields': {
                 'FNAME': first_name,
@@ -150,13 +154,20 @@ def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "")
             }
         }
         
-        # Add to list
-        client.lists.members.create(list_id=MAILCHIMP_LIST_ID, data=data)
-        logger.info(f"Successfully added {email} to Mailchimp.")
+        # Add to list using PUT (create_or_update)
+        # 1. 'subscribed' status bypasses double opt-in confirmation emails.
+        # 2. Using PUT bypasses the default Mailchimp list Welcome Automation emails.
+        # This acts as an "insert or index" operation.
+        client.lists.members.create_or_update(
+            list_id=MAILCHIMP_LIST_ID, 
+            subscriber_hash=subscriber_hash, 
+            data=data
+        )
+        logger.info(f"Successfully added/updated {email} in Mailchimp.")
         return True
-    # Mailchimp3 throws generic Exception if already exists (400)
+    # Mailchimp3 throws generic Exception if it fails
     except Exception as e:
-        logger.warning(f"Failed to add {email} to Mailchimp: {e}")
+        logger.warning(f"Failed to add/update {email} in Mailchimp: {e}")
         return False
 
 # --- Notification Tools ---

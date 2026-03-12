@@ -10,8 +10,10 @@ from pydantic import BaseModel, Field
 
 from tools import search_events, scrape_event_page, add_lead_to_mailchimp, send_whatsapp_notification, send_email_notification
 from database import repository
+import config
 
 logger = logging.getLogger(__name__)
+
 
 # --- Models ---
 class LeadData(BaseModel):
@@ -45,10 +47,21 @@ class GraphState(TypedDict):
     notifications_sent: bool
 
 from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 
 # --- LLM ---
 def get_llm():
-    return ChatOpenAI(model="gpt-4o-mini")
+    if config.LLM_PROVIDER == "ollama":
+        logger.info(f"Using Ollama LLM with model: {config.OLLAMA_MODEL}")
+        return ChatOllama(
+            model=config.OLLAMA_MODEL,
+            base_url=config.OLLAMA_BASE_URL,
+            temperature=0
+        )
+    else:
+        logger.info("Using OpenAI LLM (gpt-4o-mini)")
+        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
 
 # --- Nodes ---
 def searcher_node(state: GraphState):
@@ -167,7 +180,7 @@ def notifier_node(state: GraphState):
     marketed_count = len(state.get("marketed_leads", []))
     
     if marketed_count > 0:
-        message = f"Event Prospecting Agent Update:\nFound, saved, and sent marketing emails to {marketed_count} new leads."
+        message = f"Event Prospecting Agent Update:\nFound, saved, and added {marketed_count} new leads to Mailchimp."
         logger.info(message)
         
         # send_whatsapp_notification(message)
