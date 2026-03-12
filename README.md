@@ -51,6 +51,7 @@ The system needs various keys and parameters to function properly. Configure the
 - `SMTP_PASS`: App password or account password for sending emails.
 - `TO_EMAIL`: Destination email address for the notifications.
 
+
 ### Database
 - `DATABASE_URL`: Connection string for SQLAlchemy (defaults to `sqlite:///leads.db`).
 
