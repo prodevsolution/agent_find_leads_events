@@ -137,5 +137,22 @@ class LeadRepository:
         finally:
             session.close()
 
+    def clear_database(self):
+        """
+        Deletes all leads from the database.
+        """
+        session = self.SessionLocal()
+        try:
+            session.query(Lead).delete()
+            session.commit()
+            logger.info("Database cleared successfully.")
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error clearing database: {str(e)}")
+            return False
+        finally:
+            session.close()
+
 # Global repository instance
 repository = LeadRepository()

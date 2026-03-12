@@ -23,10 +23,51 @@ LAST_RUN = "Never"
 NEXT_RUN = "Pending..."
 
 # Default search configurations
-niches = [
-    "Circus", "Concerts", "Theater", "Community Events", "Festivals", 
-    "Street Fairs", "Cultural Events", "Outdoor Events", "Carnivals", "Agricultural Shows"
+DEFAULT_NICHES = [
+    "Circus productions", "Touring theater", "Magic shows", "Ice shows", 
+    "Touring musical productions", "County fairs", "State fairs", "Agricultural shows"
 ]
+
+def get_initial_niches():
+    niches = set([n.lower() for n in DEFAULT_NICHES])
+    extra_str = os.getenv("EXTRA_NICHES", "")
+    if extra_str:
+        for ext in extra_str.split(','):
+            ext = ext.strip().lower()
+            if ext:
+                niches.add(ext)
+    
+    # Capitalize for display and sort
+    return sorted([n.capitalize() for n in niches])
+
+active_niches = get_initial_niches()
+
+def add_niche(new_niche: str):
+    new_niche = new_niche.strip()
+    if not new_niche:
+        return "Niche cannot be empty", gr.Dropdown(choices=active_niches)
+    
+    new_lower = new_niche.lower()
+    for existing in active_niches:
+        if existing.lower() == new_lower:
+            return f"Niche '{new_niche}' already exists.", gr.Dropdown(choices=active_niches)
+            
+    active_niches.append(new_niche)
+    active_niches.sort()
+    logger.info(f"Added new niche: {new_niche}")
+    return f"Added '{new_niche}' successfully.", gr.Dropdown(choices=active_niches)
+
+def remove_niche(selected_niche: str):
+    if not selected_niche:
+        return "Please select a niche to remove.", gr.Dropdown(choices=active_niches)
+        
+    for i, existing in enumerate(active_niches):
+        if existing == selected_niche:
+            removed = active_niches.pop(i)
+            logger.info(f"Removed niche: {removed}")
+            return f"Removed '{removed}' successfully.", gr.Dropdown(choices=active_niches, value=None)
+            
+    return f"Niche '{selected_niche}' not found.", gr.Dropdown(choices=active_niches)
 
 def format_date(dt: datetime) -> str:
     """Format datetime to ISO 8601 string part (YYYY-MM-DD)."""
@@ -59,7 +100,7 @@ def run_agent_workflow(override_start=None, override_end=None):
         end_date = override_end
         
     # Construct base queries
-    queries = [f"{niche} events" for niche in niches]
+    queries = [f"{niche} events" for niche in active_niches]
 
     initial_state = {
         "search_queries": queries,
@@ -143,6 +184,19 @@ def manual_trigger(start_date_ui, end_date_ui):
     
     return "Workflow triggered manually. Refresh dashboard to see updates.", refresh_dashboard()
 
+def clear_db_action():
+    if AGENT_STATUS == "Running":
+        return "Cannot clear database while agents are running.", refresh_dashboard()
+    success = repository.clear_database()
+    if success:
+        return "Database cleared successfully.", refresh_dashboard()
+    return "Failed to clear database. Check logs.", refresh_dashboard()
+
+def stop_server_action():
+    logger.info("Stopping Server gracefully via UI...")
+    os._exit(0)
+
+
 
 with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     gr.Markdown("# 🚀 Event Prospecting Multi-Agent System")
@@ -164,7 +218,42 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
                 placeholder="Leave empty for default (Infinity)"
             )
             trigger_btn = gr.Button("Run Agents Now", variant="primary")
+            
+            with gr.Row():
+                clear_db_btn = gr.Button("🗑️ Clear Database", variant="stop")
+                stop_server_btn = gr.Button("🛑 Stop Server", variant="stop")
+                
             trigger_output = gr.Textbox(label="Status Message", interactive=False)
+            
+            gr.Markdown("### 🎯 Niche Management")
+            
+            with gr.Row():
+                niche_list_ui = gr.Dropdown(
+                    label="Active Niches",
+                    choices=active_niches,
+                    interactive=True
+                )
+                remove_niche_btn = gr.Button("Remove Selected")
+                
+            with gr.Row():
+                new_niche_input = gr.Textbox(label="New Niche", placeholder="e.g. Anime Conventions")
+                add_niche_btn = gr.Button("Add Niche")
+                
+            add_niche_status = gr.Textbox(label="Niche Update Status", interactive=False)
+            
+            add_niche_btn.click(
+                fn=add_niche,
+                inputs=[new_niche_input],
+                outputs=[add_niche_status, niche_list_ui]
+            )
+            remove_niche_btn.click(
+                fn=remove_niche,
+                inputs=[niche_list_ui],
+                outputs=[add_niche_status, niche_list_ui]
+            )
+            
+            # End of Column 1
+
             
         with gr.Column():
             gr.Markdown("### 👥 Recent Leads (Top 10)")
@@ -180,6 +269,23 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     refresh_btn.click(
         fn=refresh_dashboard,
         outputs=[status_panel, stats_panel, leads_table]
+    )
+    
+    # Wrapper for clear DB
+    def clear_db_wrapper():
+        msg, (s1, s2, table) = clear_db_action()
+        return msg, s1, s2, table
+        
+    clear_db_btn.click(
+        fn=clear_db_wrapper,
+        inputs=None,
+        outputs=[trigger_output, status_panel, stats_panel, leads_table]
+    )
+    
+    stop_server_btn.click(
+        fn=stop_server_action,
+        inputs=None,
+        outputs=None
     )
     
     trigger_btn.click(

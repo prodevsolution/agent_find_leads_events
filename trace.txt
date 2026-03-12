@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "E:\PROJECTS\PROYECT_AGENT_FIND-LEADS_EVENTS\source\from_prodevsolution_organization\agent_find_leads_events\debug.py", line 8, in <module>
+    import app
+  File "E:\PROJECTS\PROYECT_AGENT_FIND-LEADS_EVENTS\source\from_prodevsolution_organization\agent_find_leads_events\app.py", line 263, in <module>
+    outputs=[trigger_output, status_panel, stats_panel, leads_table]
+                                                        ^^^^^^^^^^^
+NameError: name 'leads_table' is not defined

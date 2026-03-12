@@ -48,19 +48,24 @@ class GraphState(TypedDict):
 
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # --- LLM ---
 def get_llm():
-    if config.LLM_PROVIDER == "ollama":
+    provider = config.LLM_PROVIDER
+    if provider == "ollama":
         logger.info(f"Using Ollama LLM with model: {config.OLLAMA_MODEL}")
         return ChatOllama(
             model=config.OLLAMA_MODEL,
             base_url=config.OLLAMA_BASE_URL,
             temperature=0
         )
-    else:
+    elif provider == "openai":
         logger.info("Using OpenAI LLM (gpt-4o-mini)")
         return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    else:
+        logger.info("Using Google Gemini LLM (gemini-2.0-flash)")
+        return ChatGoogleGenerativeAI(model="gemini-2.0-flash")
 
 
 # --- Nodes ---
