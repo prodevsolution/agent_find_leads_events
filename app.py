@@ -257,12 +257,12 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
             
         with gr.Column():
             gr.Markdown("### 👥 Recent Leads (Top 10)")
-        leads_table = gr.Dataframe(
-            headers=["Name", "Email", "Event", "Address", "Status"],
-            datatype=["str", "str", "str", "str", "str"],
-            column_count=(5, "fixed"),
-            interactive=False
-        )
+            leads_table = gr.Dataframe(
+                headers=["Name", "Email", "Event", "Address", "Status"],
+                datatype=["str", "str", "str", "str", "str"],
+                column_count=(5, "fixed"),
+                interactive=False
+            )
             refresh_btn = gr.Button("Refresh Dashboard")
 
     # Wire up events
