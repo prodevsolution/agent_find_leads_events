@@ -2,6 +2,7 @@
 
 This project is an automated platform designed to discover events and extract potential leads using advanced artificial intelligence and orchestrated workflows.
 
+
 ## System Architecture
 
 The core of the system is built on **LangGraph**, which orchestrates a cyclic workflow (pipeline) composed of several specialized agents.
