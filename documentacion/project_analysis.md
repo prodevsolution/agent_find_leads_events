@@ -7,6 +7,7 @@ This project is an automated platform designed to discover events and extract po
 
 The core of the system is built on **LangGraph**, which orchestrates a cyclic workflow (pipeline) composed of several specialized agents.
 
+
 ### 1. The Agent Pipeline (`graph.py`)
 The flow follows a logical sequence of 5 stages:
 - **Searcher**: Uses **Tavily Search** to find relevant events on the web based on configured niches (e.g., Circuses, Festivals, Fairs). It is "Time-Aware," meaning it prioritizes future events.
