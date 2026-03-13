@@ -37,8 +37,9 @@ jobs:
               echo "📁 Updating existing repository..."
               cd "${{ secrets.REMOTE_PROJECT_PATH }}"
               git fetch --all
-              git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
+              # Force discard local changes that might conflict with the update
               git reset --hard origin/${{ github.ref_name }}
+              git checkout -B ${{ github.ref_name }} origin/${{ github.ref_name }}
             else
               echo "📁 Cloning repository for the first time..."
               PARENT_DIR=$(dirname "${{ secrets.REMOTE_PROJECT_PATH }}")
