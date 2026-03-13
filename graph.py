@@ -152,20 +152,24 @@ def scraper_node(state: GraphState):
                     except Exception as e:
                         logger.warning(f"Could not parse dates for {lead.email}: {e}")
                     
-                    db_lead = repository.add_lead(lead_dict)
+                    db_lead, is_new = repository.add_lead(lead_dict)
                     if db_lead:
                         saved_leads_info.append({"email": db_lead.email, "name": db_lead.name, "event_url": lead_dict["event_url"]})
-                        logger.info(f"Immediately saved lead to DB: {db_lead.email}")
                         
-                        # Sync to Mailchimp right away
-                        name_parts = (lead.name or "").split(" ")
-                        first_name = name_parts[0] if name_parts else ""
-                        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-                        success = add_lead_to_mailchimp(db_lead.email, first_name, last_name, lead.event_url or "")
-                        if success:
-                            repository.update_lead_status(db_lead.email, status='marketed', campaign_sent=True)
-                            marketed_emails.append(db_lead.email)
-                            logger.info(f"Immediately synced to Mailchimp: {db_lead.email}")
+                        # Sync to Mailchimp right away ONLY IF IT'S A NEW LEAD
+                        # This avoids redundant API calls and potential validation errors on every run
+                        if is_new:
+                            logger.info(f"Immediately saved lead to DB: {db_lead.email}")
+                            name_parts = (lead.name or "").split(" ")
+                            first_name = name_parts[0] if name_parts else ""
+                            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+                            success = add_lead_to_mailchimp(db_lead.email, first_name, last_name, lead.event_url or "")
+                            if success:
+                                repository.update_lead_status(db_lead.email, status='marketed', campaign_sent=True)
+                                marketed_emails.append(db_lead.email)
+                                logger.info(f"Immediately synced to Mailchimp: {db_lead.email}")
+                        else:
+                            logger.info(f"Lead {db_lead.email} already exists, skipping Mailchimp sync.")
                     # ------ END IMMEDIATE SAVE ------
                     
         except Exception as e:

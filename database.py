@@ -44,9 +44,10 @@ class LeadRepository:
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
-    def add_lead(self, lead_data: dict) -> Lead:
+    def add_lead(self, lead_data: dict) -> tuple[Lead, bool]:
         """
-        Adds a single lead to the database. Returns the Lead object if successful.
+        Adds a single lead to the database. Returns a tuple (Lead, is_new).
+        is_new is True if the lead was freshly inserted, False if it already existed.
         Ignores duplicates based on the Unique Constraint on 'email'.
         """
         session = self.SessionLocal()
@@ -54,23 +55,25 @@ class LeadRepository:
             # Check if lead already exists to avoid throwing IntegrityError repeatedly
             existing_lead = session.query(Lead).filter_by(email=lead_data.get('email')).first()
             if existing_lead:
-                logger.info(f"Lead with email {lead_data.get('email')} already exists. Skipping.")
-                return existing_lead
+                logger.debug(f"Lead with email {lead_data.get('email')} already exists. Skipping.")
+                return existing_lead, False
             
             new_lead = Lead(**lead_data)
             session.add(new_lead)
             session.commit()
             session.refresh(new_lead)
             logger.info(f"Successfully added lead: {new_lead.email}")
-            return new_lead
+            return new_lead, True
         except IntegrityError:
             session.rollback()
             logger.warning(f"Integrity error (duplicate email): {lead_data.get('email')}")
-            return None
+            # Try to fetch it again if it was a race condition
+            existing = session.query(Lead).filter_by(email=lead_data.get('email')).first()
+            return existing, False
         except Exception as e:
             session.rollback()
             logger.error(f"Error adding lead: {str(e)}")
-            return None
+            return None, False
         finally:
             session.close()
 

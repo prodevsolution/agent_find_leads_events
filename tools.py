@@ -94,9 +94,22 @@ def scrape_event_page(url: str) -> dict:
     """
     logger.info(f"Scraping URL: {url}")
     try:
-        # Use a common user agent to avoid basic blocks
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
+        # Use a more comprehensive set of headers to mimic a real browser and avoid 403 blocks
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
+        }
+        response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -155,14 +168,14 @@ def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "",
         }
 
         # If we have an event URL, add it to the Address field in Mailchimp
-        # We use addr1 in the ADDRESS object as it's the primary way to store a string as an address
+        # We use a safer approach for the ADDRESS field to avoid validation errors
         if event_url:
             data['merge_fields']['ADDRESS'] = {
-                'addr1': event_url,
-                'city': '.', 
-                'state': '.',
-                'zip': '.',
-                'country': 'US'
+                'addr1': event_url[:250], # Mailchimp has a limit of approx 255 chars
+                'city': 'Remote', 
+                'state': 'NA',
+                'zip': '00000',
+                'country': '' # Empty country often bypasses strict geographic field validation
             }
         
         # Add to list using PUT (create_or_update)
