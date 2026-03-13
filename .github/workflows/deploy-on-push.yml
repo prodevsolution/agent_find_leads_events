@@ -67,8 +67,12 @@ jobs:
             echo "🔐 Configuring environment (.env) files..."
             rm -f .env
             cat > .env << 'ENV_EOF'
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
             TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }}
+            LLM_PROVIDER=${{ secrets.LLM_PROVIDER }}
+            OLLAMA_BASE_URL=${{ secrets.OLLAMA_BASE_URL }}
+            OLLAMA_MODEL=${{ secrets.OLLAMA_MODEL }}
             MAILCHIMP_API_KEY=${{ secrets.MAILCHIMP_API_KEY }}
             MAILCHIMP_SERVER_PREFIX=${{ secrets.MAILCHIMP_SERVER_PREFIX }}
             MAILCHIMP_LIST_ID=${{ secrets.MAILCHIMP_LIST_ID }}
