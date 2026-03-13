@@ -10,10 +10,17 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from database import repository
 from graph import app_graph
 
-# Configure logging
+# Configure logging to both console and file
+log_file = "agent.log"
+file_handler = logging.FileHandler(log_file, encoding='utf-8')
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+stream_handler.setFormatter(formatter)
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handlers=[file_handler, stream_handler]
 )
 logger = logging.getLogger(__name__)
 
@@ -141,9 +148,29 @@ def start_scheduler():
 
 
 # --- Gradio UI ---
-def refresh_dashboard():
+def get_recent_logs(level_filter="ALL"):
+    """Reads the last 50 lines from agent.log and filters by level."""
+    if not os.path.exists(log_file):
+        return "No logs yet."
+    
+    try:
+        with open(log_file, "r") as f:
+            lines = f.readlines()
+            
+        recent_lines = lines[-50:]
+        if level_filter == "ALL":
+            filtered = recent_lines
+        else:
+            filtered = [l for l in recent_lines if f"- {level_filter} -" in l]
+            
+        return "".join(filtered)
+    except Exception as e:
+        return f"Error reading logs: {e}"
+
+def refresh_dashboard(log_level="ALL"):
     stats = repository.get_stats()
     leads = repository.get_recent_leads(10)
+    logs = get_recent_logs(log_level)
     
     # Formatting for Grid
     recent_leads_data = [
@@ -172,25 +199,34 @@ def refresh_dashboard():
     - **Responses Detected**: {stats['responded_count']}
     """
     
-    return status_markdown, stats_markdown, recent_leads_data
+    return status_markdown, stats_markdown, recent_leads_data, logs
 
 def manual_trigger(start_date_ui, end_date_ui):
     if AGENT_STATUS == "Running":
-        return "Agents are already running. Please wait...", refresh_dashboard()
+        return "Agents are already running. Please wait..."
     
     # Run in a separate thread so Gradio doesn't block
     thread = threading.Thread(target=run_agent_workflow, args=(start_date_ui, end_date_ui))
     thread.start()
     
-    return "Workflow triggered manually. Refresh dashboard to see updates.", refresh_dashboard()
+    return "[SUCCESS] Workflow triggered! The UI will auto-refresh while agents are running."
 
-def clear_db_action():
+def clear_db_action(log_level="ALL"):
     if AGENT_STATUS == "Running":
-        return "Cannot clear database while agents are running.", refresh_dashboard()
+        return "Cannot clear database while agents are running.", refresh_dashboard(log_level)
     success = repository.clear_database()
     if success:
-        return "Database cleared successfully.", refresh_dashboard()
-    return "Failed to clear database. Check logs.", refresh_dashboard()
+        return "Database cleared successfully.", refresh_dashboard(log_level)
+    return "Failed to clear database. Check logs.", refresh_dashboard(log_level)
+
+def clear_logs_action(log_level="ALL"):
+    """Truncates the log file and refreshes UI."""
+    try:
+        with open(log_file, "w", encoding='utf-8') as f:
+            f.write("")
+        return "Logs cleared.", refresh_dashboard(log_level)
+    except Exception as e:
+        return f"Error clearing logs: {e}", refresh_dashboard(log_level)
 
 def stop_server_action():
     logger.info("Stopping Server gracefully via UI...")
@@ -265,21 +301,63 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
             )
             refresh_btn = gr.Button("Refresh Dashboard")
 
+        with gr.Column():
+            gr.Markdown("### 📜 Activity Logs")
+            log_filter = gr.Dropdown(
+                label="Log Level Filter",
+                choices=["ALL", "INFO", "WARNING", "ERROR"],
+                value="ALL"
+            )
+            log_display = gr.Code(
+                label="Recent Activity",
+                language="python",
+                lines=20,
+                interactive=False
+            )
+            clear_logs_btn = gr.Button("🗑️ Clear Log File", variant="secondary")
+
+    # Auto-refresh timer: fires every 5 seconds, active only while agents are running
+    live_timer = gr.Timer(value=5, active=False)
+    
+    def auto_refresh(level):
+        """Called by timer - returns dashboard data + updates timer active state."""
+        s, st, tbl, logs = refresh_dashboard(level)
+        # Keep timer active while workflow is running, deactivate when idle
+        is_running = (AGENT_STATUS == "Running")
+        return s, st, tbl, logs, gr.Timer(active=is_running)
+
+    live_timer.tick(
+        fn=auto_refresh,
+        inputs=[log_filter],
+        outputs=[status_panel, stats_panel, leads_table, log_display, live_timer]
+    )
+
     # Wire up events
     refresh_btn.click(
         fn=refresh_dashboard,
-        outputs=[status_panel, stats_panel, leads_table]
+        inputs=[log_filter],
+        outputs=[status_panel, stats_panel, leads_table, log_display]
     )
     
     # Wrapper for clear DB
-    def clear_db_wrapper():
-        msg, (s1, s2, table) = clear_db_action()
-        return msg, s1, s2, table
+    def clear_db_wrapper(level):
+        msg, (s1, s2, table, logs) = clear_db_action(level)
+        return msg, s1, s2, table, logs
         
     clear_db_btn.click(
         fn=clear_db_wrapper,
-        inputs=None,
-        outputs=[trigger_output, status_panel, stats_panel, leads_table]
+        inputs=[log_filter],
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display]
+    )
+
+    def clear_logs_wrapper(level):
+        msg, (s1, s2, table, logs) = clear_logs_action(level)
+        return msg, s1, s2, table, logs
+
+    clear_logs_btn.click(
+        fn=clear_logs_wrapper,
+        inputs=[log_filter],
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display]
     )
     
     stop_server_btn.click(
@@ -288,25 +366,19 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
         outputs=None
     )
     
-    trigger_btn.click(
-        fn=manual_trigger,
-        inputs=[start_date_input, end_date_input],
-        # The Gradio tuple output cannot map partially, so we wrap it
-        outputs=None # Custom JS or just ignoring standard return for now, using a wrapper
-    )
-    
-    # Wrapper for trigger
-    def trigger_wrapper(start_date, end_date):
-        msg, (s1, s2, table) = manual_trigger(start_date, end_date)
-        return msg, s1, s2, table
+    # Wrapper for trigger: starts the workflow, activates the live timer
+    def trigger_wrapper(start_date, end_date, level):
+        msg = manual_trigger(start_date, end_date)
+        s, st, tbl, logs = refresh_dashboard(level)
+        return msg, s, st, tbl, logs, gr.Timer(active=True)
         
     trigger_btn.click(
         fn=trigger_wrapper,
-        inputs=[start_date_input, end_date_input],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table]
+        inputs=[start_date_input, end_date_input, log_filter],
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, live_timer]
     )
 
-    demo.load(refresh_dashboard, None, [status_panel, stats_panel, leads_table])
+    demo.load(refresh_dashboard, inputs=[log_filter], outputs=[status_panel, stats_panel, leads_table, log_display])
 
 
 if __name__ == "__main__":

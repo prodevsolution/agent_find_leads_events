@@ -1,0 +1,67 @@
+2026-03-13 10:37:19,315 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date: alohastadium@hawaii.gov - 2026-01-01
+2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date:  - 2026-03-12
+2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date:  - 2026-03-13
+2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date:  - 2026-03-13
+2026-03-13 10:37:19,319 - graph - INFO - Discarded lead due to past date:  - 2026-03-13
+2026-03-13 10:37:19,319 - tools - INFO - Scraping URL: https://www.thefair.com/events-calendar/
+2026-03-13 10:37:20,025 - tools - INFO - Scraping URL: https://worldpopulationreview.com/state-rankings/state-fairs-by-state
+2026-03-13 10:37:20,613 - tools - INFO - Scraping URL: https://www.gemfaire.com/events/2026-3-hillsboro
+2026-03-13 10:37:23,878 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:37:23,895 - graph - INFO - Discarded lead due to past date: info@gemfaire.com - 2026-03-13
+2026-03-13 10:37:23,895 - tools - INFO - Scraping URL: https://www.tristatehomepage.com/news/local-news/heres-a-look-at-events-from-march-12-through-15-2026/
+2026-03-13 10:37:24,526 - tools - ERROR - Failed to scrape https://www.tristatehomepage.com/news/local-news/heres-a-look-at-events-from-march-12-through-15-2026/: 403 Client Error: Forbidden for url: https://www.tristatehomepage.com/news/local-news/heres-a-look-at-events-from-march-12-through-15-2026/
+2026-03-13 10:37:24,527 - tools - INFO - Scraping URL: https://carnivalwarehouse.com/tracker-viewer.asp?mode=generic&filterKey=statefairs
+2026-03-13 10:37:35,740 - tools - ERROR - Failed to scrape https://carnivalwarehouse.com/tracker-viewer.asp?mode=generic&filterKey=statefairs: HTTPSConnectionPool(host='carnivalwarehouse.com', port=443): Max retries exceeded with url: /tracker-viewer.asp?mode=generic&filterKey=statefairs (Caused by NameResolutionError("HTTPSConnection(host='carnivalwarehouse.com', port=443): Failed to resolve 'carnivalwarehouse.com' ([Errno 11001] getaddrinfo failed)"))
+2026-03-13 10:37:35,741 - tools - INFO - Scraping URL: https://business.oregonfestivals.org/events
+2026-03-13 10:37:49,703 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:37:49,705 - graph - INFO - Discarded lead due to past date: members@oregonfestivals.org - 2026-03-12
+2026-03-13 10:37:49,705 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event Hillsboro Gem Faire
+2026-03-13 10:37:49,709 - database - INFO - Successfully added lead: members@oregonfestivals.org
+2026-03-13 10:37:49,709 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
+2026-03-13 10:37:49,710 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
+2026-03-13 10:37:49,710 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:37:51,949 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:37:51,950 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
+2026-03-13 10:37:51,953 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
+2026-03-13 10:37:51,953 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event Shamrock Special Steam Train Ride
+2026-03-13 10:37:51,954 - database - INFO - Lead with email members@oregonfestivals.org already exists. Skipping.
+2026-03-13 10:37:51,954 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
+2026-03-13 10:37:51,954 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
+2026-03-13 10:37:51,955 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:37:53,004 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:37:53,006 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
+2026-03-13 10:37:53,008 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
+2026-03-13 10:37:53,008 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event Plant Sale & Horticultural Tours
+2026-03-13 10:37:53,009 - database - INFO - Lead with email members@oregonfestivals.org already exists. Skipping.
+2026-03-13 10:37:53,010 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
+2026-03-13 10:37:53,010 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
+2026-03-13 10:37:53,011 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:37:53,802 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:37:53,803 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
+2026-03-13 10:37:53,805 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
+2026-03-13 10:37:53,805 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event A Musical Journey to Triumph
+2026-03-13 10:37:53,806 - database - INFO - Lead with email members@oregonfestivals.org already exists. Skipping.
+2026-03-13 10:37:53,806 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
+2026-03-13 10:37:53,807 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
+2026-03-13 10:37:53,807 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:37:55,099 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:37:55,100 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
+2026-03-13 10:37:55,101 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
+2026-03-13 10:37:55,102 - tools - INFO - Scraping URL: https://www.facebook.com/groups/749475688436992/posts/25665140176443865/
+2026-03-13 10:37:55,689 - tools - ERROR - Failed to scrape https://www.facebook.com/groups/749475688436992/posts/25665140176443865/: 400 Client Error: Bad Request for url: https://www.facebook.com/groups/749475688436992/posts/25665140176443865/
+2026-03-13 10:37:55,691 - tools - INFO - Scraping URL: https://www.evergreenfair.org/Calendar.aspx
+2026-03-13 10:37:57,300 - tools - INFO - Scraping URL: http://www.thetradeshowcalendar.com/abstractdisplays/index.php?vSort=sd&vShow=search&BNR=&vInd=&vOrg=&vMo=&vCity=&vCtry=United%20States&vRgn=&vExh=&vInd=&vYr=&vState=&vAtt=&vNSF=&vRpP=100&vPos=100
+2026-03-13 10:37:58,250 - tools - INFO - Scraping URL: https://wizmusical.com/tour-dates/
+2026-03-13 10:37:59,073 - tools - ERROR - Failed to scrape https://wizmusical.com/tour-dates/: 403 Client Error: Forbidden for url: https://wizmusical.com/tour-dates/
+2026-03-13 10:37:59,075 - tools - INFO - Scraping URL: https://theater.guide/broadway/shows-on-tour/
+2026-03-13 10:38:00,386 - tools - INFO - Scraping URL: https://www.chicago-theater.com/dates/2026/03/category/musical
+2026-03-13 10:38:01,072 - tools - INFO - Scraping URL: https://www.backtothefuturemusical.com/northamerica/tour-dates/
+2026-03-13 10:38:01,808 - tools - INFO - Scraping URL: https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/
+2026-03-13 10:38:02,434 - tools - ERROR - Failed to scrape https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/: 400 Client Error: Bad Request for url: https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/
+2026-03-13 10:38:02,436 - tools - INFO - Scraping URL: https://chicagoontour.com/schedule/
+2026-03-13 10:38:03,008 - tools - INFO - Scraping URL: https://www.chicago-theater.com/dates/2026/03
+2026-03-13 10:38:04,096 - tools - INFO - Scraping URL: https://tour.harrypottertheplay.com/
+2026-03-13 10:38:05,916 - tools - INFO - Scraping URL: https://soundofmusicontour.com/tour/
+2026-03-13 10:38:09,896 - tools - INFO - Scraping URL: https://www.broadwayworld.com/article/What-Broadway-Shows-Are-On-Tour-Across-North-America-For-The-20242025-Season-A-Complete-Guide-20240126
+2026-03-13 10:38:11,176 - tools - INFO - Scraping URL: https://lamiradatheatre.com/tickets/

@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from tools import search_events, scrape_event_page, add_lead_to_mailchimp, send_whatsapp_notification, send_email_notification
 from database import repository
+from dateutil import parser as date_parser
 import config
 
 logger = logging.getLogger(__name__)
@@ -92,10 +93,16 @@ def searcher_node(state: GraphState):
     return {"urls_to_scrape": urls}
 
 def scraper_node(state: GraphState):
-    """Scrapes URLs and extracts leads using LLM."""
+    """
+    Scrapes URLs and extracts leads using LLM.
+    Each valid lead is immediately saved to DB and synced to Mailchimp
+    so progress is visible in real-time.
+    """
     logger.info("--- SCRAPER NODE ---")
     llm = get_llm().with_structured_output(ExtractedLeads)
     valid_leads = []
+    saved_leads_info = []
+    marketed_emails = []
     current_date_str = state.get("current_date")
     
     for url in state.get("urls_to_scrape", []):
@@ -118,73 +125,67 @@ def scraper_node(state: GraphState):
                 
                 for lead in extraction.leads:
                     # Time-aware Validation: discard if event is in the past
-                    if lead.is_valid_date and lead.email:
-                        # Ensure the URL is attached
-                        lead.event_url = url
-                        valid_leads.append(lead)
-                        logger.info(f"Extracted valid lead: {lead.email} for event {lead.event_name}")
-                    else:
+                    if not (lead.is_valid_date and lead.email):
                         logger.info(f"Discarded lead due to past date: {lead.email} - {lead.event_start_date}")
+                        continue
+                    
+                    # Ensure the URL is attached
+                    lead.event_url = url
+                    valid_leads.append(lead)
+                    logger.info(f"Extracted valid lead: {lead.email} for event {lead.event_name}")
+                    
+                    # ------ IMMEDIATE SAVE: DB + Mailchimp ------
+                    lead_dict = {
+                        "name": lead.name,
+                        "email": lead.email.lower(),
+                        "phone": lead.phone,
+                        "event_name": lead.event_name,
+                        "event_url": lead.event_url,
+                        "event_start_date": None,
+                        "event_end_date": None
+                    }
+                    try:
+                        if lead.event_start_date:
+                            lead_dict["event_start_date"] = date_parser.parse(lead.event_start_date)
+                        if lead.event_end_date:
+                            lead_dict["event_end_date"] = date_parser.parse(lead.event_end_date)
+                    except Exception as e:
+                        logger.warning(f"Could not parse dates for {lead.email}: {e}")
+                    
+                    db_lead = repository.add_lead(lead_dict)
+                    if db_lead:
+                        saved_leads_info.append({"email": db_lead.email, "name": db_lead.name, "event_url": lead_dict["event_url"]})
+                        logger.info(f"Immediately saved lead to DB: {db_lead.email}")
+                        
+                        # Sync to Mailchimp right away
+                        name_parts = (lead.name or "").split(" ")
+                        first_name = name_parts[0] if name_parts else ""
+                        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+                        success = add_lead_to_mailchimp(db_lead.email, first_name, last_name, lead.event_url or "")
+                        if success:
+                            repository.update_lead_status(db_lead.email, status='marketed', campaign_sent=True)
+                            marketed_emails.append(db_lead.email)
+                            logger.info(f"Immediately synced to Mailchimp: {db_lead.email}")
+                    # ------ END IMMEDIATE SAVE ------
+                    
         except Exception as e:
             logger.error(f"Error scraping or extracting from {url}: {e}")
 
-    return {"scraped_leads": valid_leads}
+    return {
+        "scraped_leads": valid_leads,
+        "saved_leads": saved_leads_info,
+        "marketed_leads": marketed_emails
+    }
 
 def db_manager_node(state: GraphState):
-    """Saves leads to SQLite using the repository pattern."""
-    logger.info("--- DB MANAGER NODE ---")
-    saved_leads_info = []
-    
-    for lead in state.get("scraped_leads", []):
-        lead_dict = {
-            "name": lead.name,
-            "email": lead.email.lower(),
-            "phone": lead.phone,
-            "event_name": lead.event_name,
-            "event_url": lead.event_url,
-            "event_start_date": None,
-            "event_end_date": None
-        }
-        
-        # safely parse dates
-        from dateutil import parser as date_parser
-        try:
-            if lead.event_start_date:
-                lead_dict["event_start_date"] = date_parser.parse(lead.event_start_date)
-            if lead.event_end_date:
-                lead_dict["event_end_date"] = date_parser.parse(lead.event_end_date)
-        except Exception as e:
-            logger.warning(f"Could not parse dates for {lead.email}: {e}")
-
-        # Insert into DB
-        db_lead = repository.add_lead(lead_dict)
-        if db_lead:
-            saved_leads_info.append({
-                "email": db_lead.email, 
-                "name": db_lead.name,
-                "event_url": lead_dict["event_url"]
-            })
-            
-    return {"saved_leads": saved_leads_info}
+    """No-op node. Leads are now saved immediately in scraper_node."""
+    logger.info("--- DB MANAGER NODE (pass-through, leads already saved) ---")
+    return {}
 
 def marketing_node(state: GraphState):
-    """Pushes new leads to Mailchimp."""
-    logger.info("--- MARKETING NODE ---")
-    marketed_emails = []
-    
-    for lead_info in state.get("saved_leads", []):
-        email = lead_info["email"]
-        event_url = lead_info.get("event_url", "")
-        name_parts = (lead_info["name"] or "").split(" ")
-        first_name = name_parts[0] if name_parts else ""
-        last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-        
-        success = add_lead_to_mailchimp(email, first_name, last_name, event_url)
-        if success:
-            repository.update_lead_status(email, status='marketed', campaign_sent=True)
-            marketed_emails.append(email)
-            
-    return {"marketed_leads": marketed_emails}
+    """No-op node. Mailchimp sync is now done immediately in scraper_node."""
+    logger.info("--- MARKETING NODE (pass-through, leads already synced) ---")
+    return {}
 
 def notifier_node(state: GraphState):
     """Sends notifications for the entire batch if any marketed leads exist."""

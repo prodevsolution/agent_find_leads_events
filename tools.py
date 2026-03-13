@@ -159,10 +159,10 @@ def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "",
         if event_url:
             data['merge_fields']['ADDRESS'] = {
                 'addr1': event_url,
-                'city': '', 
-                'state': '',
-                'zip': '',
-                'country': ''
+                'city': '.', 
+                'state': '.',
+                'zip': '.',
+                'country': 'US'
             }
         
         # Add to list using PUT (create_or_update)
@@ -178,7 +178,7 @@ def add_lead_to_mailchimp(email: str, first_name: str = "", last_name: str = "",
         return True
     # Mailchimp3 throws generic Exception if it fails
     except Exception as e:
-        logger.warning(f"Failed to add/update {email} in Mailchimp: {e}")
+        logger.error(f"Mailchimp sync failed for {email}: {e}")
         return False
 
 # --- Notification Tools ---
