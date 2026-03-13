@@ -1,67 +1,284 @@
-2026-03-13 10:37:19,315 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date: alohastadium@hawaii.gov - 2026-01-01
-2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date:  - 2026-03-12
-2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date:  - 2026-03-13
-2026-03-13 10:37:19,318 - graph - INFO - Discarded lead due to past date:  - 2026-03-13
-2026-03-13 10:37:19,319 - graph - INFO - Discarded lead due to past date:  - 2026-03-13
-2026-03-13 10:37:19,319 - tools - INFO - Scraping URL: https://www.thefair.com/events-calendar/
-2026-03-13 10:37:20,025 - tools - INFO - Scraping URL: https://worldpopulationreview.com/state-rankings/state-fairs-by-state
-2026-03-13 10:37:20,613 - tools - INFO - Scraping URL: https://www.gemfaire.com/events/2026-3-hillsboro
-2026-03-13 10:37:23,878 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-2026-03-13 10:37:23,895 - graph - INFO - Discarded lead due to past date: info@gemfaire.com - 2026-03-13
-2026-03-13 10:37:23,895 - tools - INFO - Scraping URL: https://www.tristatehomepage.com/news/local-news/heres-a-look-at-events-from-march-12-through-15-2026/
-2026-03-13 10:37:24,526 - tools - ERROR - Failed to scrape https://www.tristatehomepage.com/news/local-news/heres-a-look-at-events-from-march-12-through-15-2026/: 403 Client Error: Forbidden for url: https://www.tristatehomepage.com/news/local-news/heres-a-look-at-events-from-march-12-through-15-2026/
-2026-03-13 10:37:24,527 - tools - INFO - Scraping URL: https://carnivalwarehouse.com/tracker-viewer.asp?mode=generic&filterKey=statefairs
-2026-03-13 10:37:35,740 - tools - ERROR - Failed to scrape https://carnivalwarehouse.com/tracker-viewer.asp?mode=generic&filterKey=statefairs: HTTPSConnectionPool(host='carnivalwarehouse.com', port=443): Max retries exceeded with url: /tracker-viewer.asp?mode=generic&filterKey=statefairs (Caused by NameResolutionError("HTTPSConnection(host='carnivalwarehouse.com', port=443): Failed to resolve 'carnivalwarehouse.com' ([Errno 11001] getaddrinfo failed)"))
-2026-03-13 10:37:35,741 - tools - INFO - Scraping URL: https://business.oregonfestivals.org/events
-2026-03-13 10:37:49,703 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
-2026-03-13 10:37:49,705 - graph - INFO - Discarded lead due to past date: members@oregonfestivals.org - 2026-03-12
-2026-03-13 10:37:49,705 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event Hillsboro Gem Faire
-2026-03-13 10:37:49,709 - database - INFO - Successfully added lead: members@oregonfestivals.org
-2026-03-13 10:37:49,709 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
-2026-03-13 10:37:49,710 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
-2026-03-13 10:37:49,710 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
-2026-03-13 10:37:51,949 - mailchimp3.client - INFO - PUT Response: 200
-2026-03-13 10:37:51,950 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
-2026-03-13 10:37:51,953 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
-2026-03-13 10:37:51,953 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event Shamrock Special Steam Train Ride
-2026-03-13 10:37:51,954 - database - INFO - Lead with email members@oregonfestivals.org already exists. Skipping.
-2026-03-13 10:37:51,954 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
-2026-03-13 10:37:51,954 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
-2026-03-13 10:37:51,955 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
-2026-03-13 10:37:53,004 - mailchimp3.client - INFO - PUT Response: 200
-2026-03-13 10:37:53,006 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
-2026-03-13 10:37:53,008 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
-2026-03-13 10:37:53,008 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event Plant Sale & Horticultural Tours
-2026-03-13 10:37:53,009 - database - INFO - Lead with email members@oregonfestivals.org already exists. Skipping.
-2026-03-13 10:37:53,010 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
-2026-03-13 10:37:53,010 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
-2026-03-13 10:37:53,011 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
-2026-03-13 10:37:53,802 - mailchimp3.client - INFO - PUT Response: 200
-2026-03-13 10:37:53,803 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
-2026-03-13 10:37:53,805 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
-2026-03-13 10:37:53,805 - graph - INFO - Extracted valid lead: members@oregonfestivals.org for event A Musical Journey to Triumph
-2026-03-13 10:37:53,806 - database - INFO - Lead with email members@oregonfestivals.org already exists. Skipping.
-2026-03-13 10:37:53,806 - graph - INFO - Immediately saved lead to DB: members@oregonfestivals.org
-2026-03-13 10:37:53,807 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/163012e0d179a6796b2082ffb2173f00
-2026-03-13 10:37:53,807 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'members@oregonfestivals.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Oregon', 'LNAME': 'Festivals & Events Association', 'ADDRESS': {'addr1': 'https://business.oregonfestivals.org/events', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
-2026-03-13 10:37:55,099 - mailchimp3.client - INFO - PUT Response: 200
-2026-03-13 10:37:55,100 - tools - INFO - Successfully added/updated members@oregonfestivals.org in Mailchimp.
-2026-03-13 10:37:55,101 - graph - INFO - Immediately synced to Mailchimp: members@oregonfestivals.org
-2026-03-13 10:37:55,102 - tools - INFO - Scraping URL: https://www.facebook.com/groups/749475688436992/posts/25665140176443865/
-2026-03-13 10:37:55,689 - tools - ERROR - Failed to scrape https://www.facebook.com/groups/749475688436992/posts/25665140176443865/: 400 Client Error: Bad Request for url: https://www.facebook.com/groups/749475688436992/posts/25665140176443865/
-2026-03-13 10:37:55,691 - tools - INFO - Scraping URL: https://www.evergreenfair.org/Calendar.aspx
-2026-03-13 10:37:57,300 - tools - INFO - Scraping URL: http://www.thetradeshowcalendar.com/abstractdisplays/index.php?vSort=sd&vShow=search&BNR=&vInd=&vOrg=&vMo=&vCity=&vCtry=United%20States&vRgn=&vExh=&vInd=&vYr=&vState=&vAtt=&vNSF=&vRpP=100&vPos=100
-2026-03-13 10:37:58,250 - tools - INFO - Scraping URL: https://wizmusical.com/tour-dates/
-2026-03-13 10:37:59,073 - tools - ERROR - Failed to scrape https://wizmusical.com/tour-dates/: 403 Client Error: Forbidden for url: https://wizmusical.com/tour-dates/
-2026-03-13 10:37:59,075 - tools - INFO - Scraping URL: https://theater.guide/broadway/shows-on-tour/
-2026-03-13 10:38:00,386 - tools - INFO - Scraping URL: https://www.chicago-theater.com/dates/2026/03/category/musical
-2026-03-13 10:38:01,072 - tools - INFO - Scraping URL: https://www.backtothefuturemusical.com/northamerica/tour-dates/
-2026-03-13 10:38:01,808 - tools - INFO - Scraping URL: https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/
-2026-03-13 10:38:02,434 - tools - ERROR - Failed to scrape https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/: 400 Client Error: Bad Request for url: https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/
-2026-03-13 10:38:02,436 - tools - INFO - Scraping URL: https://chicagoontour.com/schedule/
-2026-03-13 10:38:03,008 - tools - INFO - Scraping URL: https://www.chicago-theater.com/dates/2026/03
-2026-03-13 10:38:04,096 - tools - INFO - Scraping URL: https://tour.harrypottertheplay.com/
-2026-03-13 10:38:05,916 - tools - INFO - Scraping URL: https://soundofmusicontour.com/tour/
-2026-03-13 10:38:09,896 - tools - INFO - Scraping URL: https://www.broadwayworld.com/article/What-Broadway-Shows-Are-On-Tour-Across-North-America-For-The-20242025-Season-A-Complete-Guide-20240126
-2026-03-13 10:38:11,176 - tools - INFO - Scraping URL: https://lamiradatheatre.com/tickets/
+2026-03-13 10:40:20,421 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:40:20,424 - graph - INFO - Discarded lead due to past date:  - 2026-03-10
+2026-03-13 10:40:20,424 - graph - INFO - Discarded lead due to past date:  - 2026-03-17
+2026-03-13 10:40:20,424 - graph - INFO - Discarded lead due to past date:  - 2026-03-19
+2026-03-13 10:40:20,424 - graph - INFO - Discarded lead due to past date:  - 2026-03-19
+2026-03-13 10:40:20,425 - graph - INFO - Discarded lead due to past date:  - 2026-03-24
+2026-03-13 10:40:20,425 - graph - INFO - Discarded lead due to past date:  - 2026-03-24
+2026-03-13 10:40:20,425 - tools - INFO - Scraping URL: https://www.farmprogressshow.com/
+2026-03-13 10:40:24,511 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:40:24,512 - graph - INFO - Extracted valid lead: shows@farmprogress.com for event Farm Progress Show
+2026-03-13 10:40:24,517 - database - INFO - Successfully added lead: shows@farmprogress.com
+2026-03-13 10:40:24,517 - graph - INFO - Immediately saved lead to DB: shows@farmprogress.com
+2026-03-13 10:40:24,517 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/971d793ca1a4021c44605bed724f2614
+2026-03-13 10:40:24,517 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'shows@farmprogress.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Farm', 'LNAME': 'Progress Show', 'ADDRESS': {'addr1': 'https://www.farmprogressshow.com/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:40:25,596 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:40:25,598 - tools - INFO - Successfully added/updated shows@farmprogress.com in Mailchimp.
+2026-03-13 10:40:25,601 - graph - INFO - Immediately synced to Mailchimp: shows@farmprogress.com
+2026-03-13 10:40:25,602 - tools - INFO - Scraping URL: https://methodex.us/top-agriculture-farming-trade-shows-in-usa-2026/
+2026-03-13 10:40:35,861 - tools - ERROR - Failed to scrape https://methodex.us/top-agriculture-farming-trade-shows-in-usa-2026/: HTTPSConnectionPool(host='methodex.us', port=443): Read timed out. (read timeout=10)
+2026-03-13 10:40:35,862 - tools - INFO - Scraping URL: https://ota.com/events/ota-calendar
+2026-03-13 10:40:37,067 - tools - INFO - Scraping URL: https://www.devosplace.org/events/2026/ultimate-sport-show
+2026-03-13 10:40:48,066 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:40:48,557 - graph - INFO - Discarded lead due to past date: webmaster@asmgrandrapids.com - 2026-03-12
+2026-03-13 10:40:48,557 - tools - INFO - Scraping URL: https://www.michigan.org/event/ultimate-sport-show-grand-rapids
+2026-03-13 10:40:50,450 - tools - INFO - Scraping URL: https://www.awesomealpharetta.com/event/water-circus-atlantis/2026-03-15/
+2026-03-13 10:41:00,148 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:41:00,150 - graph - INFO - Extracted valid lead: info@awesomealpharetta.com for event Water Circus Atlantis
+2026-03-13 10:41:00,153 - database - INFO - Successfully added lead: info@awesomealpharetta.com
+2026-03-13 10:41:00,153 - graph - INFO - Immediately saved lead to DB: info@awesomealpharetta.com
+2026-03-13 10:41:00,154 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/e8dfb4a3de9bc7c7413bb6bbf3de2204
+2026-03-13 10:41:00,154 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@awesomealpharetta.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Awesome', 'LNAME': 'Alpharetta', 'ADDRESS': {'addr1': 'https://www.awesomealpharetta.com/event/water-circus-atlantis/2026-03-15/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:41:01,047 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:41:01,049 - tools - INFO - Successfully added/updated info@awesomealpharetta.com in Mailchimp.
+2026-03-13 10:41:01,052 - graph - INFO - Immediately synced to Mailchimp: info@awesomealpharetta.com
+2026-03-13 10:41:01,052 - tools - INFO - Scraping URL: https://rastellicircus.com/
+2026-03-13 10:41:01,458 - tools - ERROR - Failed to scrape https://rastellicircus.com/: 403 Client Error: Forbidden for url: https://rastellicircus.com/
+2026-03-13 10:41:01,460 - tools - INFO - Scraping URL: https://jordancircus.com/
+2026-03-13 10:41:01,797 - tools - ERROR - Failed to scrape https://jordancircus.com/: 403 Client Error: Forbidden for url: https://jordancircus.com/
+2026-03-13 10:41:01,799 - tools - INFO - Scraping URL: https://www.thebige.com/events/2026/circus-spectacular
+2026-03-13 10:41:06,719 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:41:06,734 - graph - INFO - Extracted valid lead: Info@TheBigE.com for event Circus Spectacular
+2026-03-13 10:41:06,737 - database - INFO - Successfully added lead: info@thebige.com
+2026-03-13 10:41:06,738 - graph - INFO - Immediately saved lead to DB: info@thebige.com
+2026-03-13 10:41:06,738 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/9b819eacd57a7c53a68d8c98dc5f956b
+2026-03-13 10:41:06,738 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@thebige.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'The', 'LNAME': 'Big E', 'ADDRESS': {'addr1': 'https://www.thebige.com/events/2026/circus-spectacular', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:41:08,706 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:41:08,707 - tools - INFO - Successfully added/updated info@thebige.com in Mailchimp.
+2026-03-13 10:41:08,710 - graph - INFO - Immediately synced to Mailchimp: info@thebige.com
+2026-03-13 10:41:08,710 - tools - INFO - Scraping URL: https://www.ringling.com/tickets/
+2026-03-13 10:41:10,268 - tools - INFO - Scraping URL: https://www.thebostoncalendar.com/events/ringling-bros-and-barnum-bailey-presents-the-greatest-show-on-earth
+2026-03-13 10:41:11,664 - tools - INFO - Scraping URL: https://www.ppacri.org/events/detail/cirque-dreams-holidaze-3
+2026-03-13 10:41:16,275 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:41:16,277 - graph - INFO - Discarded lead due to past date: phiatt@ppacri.org - 2025-12-19
+2026-03-13 10:41:16,277 - tools - INFO - Scraping URL: https://www.facebook.com/cirque.italia/posts/panama-city-beach-water-circus-atlantis-is-coming-to-youwater-circus-atlantis-is/1359522616205831/
+2026-03-13 10:41:16,814 - tools - ERROR - Failed to scrape https://www.facebook.com/cirque.italia/posts/panama-city-beach-water-circus-atlantis-is-coming-to-youwater-circus-atlantis-is/1359522616205831/: 400 Client Error: Bad Request for url: https://www.facebook.com/cirque.italia/posts/panama-city-beach-water-circus-atlantis-is-coming-to-youwater-circus-atlantis-is/1359522616205831/
+2026-03-13 10:41:16,816 - tools - INFO - Scraping URL: https://www.vividseats.com/jordan-world-circus-tickets--theater-circus/performer/80522
+2026-03-13 10:41:27,221 - tools - INFO - Scraping URL: https://gardenbrosnuclearcircus.com/
+2026-03-13 10:41:27,914 - tools - INFO - Scraping URL: https://www.facebook.com/walkercountyfair/posts/2026-fair-dates-march-27-april-4/1246218207294213/
+2026-03-13 10:41:28,422 - tools - ERROR - Failed to scrape https://www.facebook.com/walkercountyfair/posts/2026-fair-dates-march-27-april-4/1246218207294213/: 400 Client Error: Bad Request for url: https://www.facebook.com/walkercountyfair/posts/2026-fair-dates-march-27-april-4/1246218207294213/
+2026-03-13 10:41:28,424 - tools - INFO - Scraping URL: https://countyfairgrounds.net/state.php?state=TX
+2026-03-13 10:41:28,892 - tools - ERROR - Failed to scrape https://countyfairgrounds.net/state.php?state=TX: 403 Client Error: Forbidden for url: https://countyfairgrounds.net/state.php?state=TX
+2026-03-13 10:41:28,894 - tools - INFO - Scraping URL: https://www.arlingtontx.gov/News-Articles/2026/March/Free-Fun-Events-in-Arlington-March-12-14-2026
+2026-03-13 10:41:30,331 - tools - ERROR - Failed to scrape https://www.arlingtontx.gov/News-Articles/2026/March/Free-Fun-Events-in-Arlington-March-12-14-2026: 403 Client Error: Forbidden for url: https://www.arlingtontx.gov/News-Articles/2026/March/Free-Fun-Events-in-Arlington-March-12-14-2026
+2026-03-13 10:41:30,332 - tools - INFO - Scraping URL: https://talleyamusements.com/events/
+2026-03-13 10:41:57,490 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:41:57,492 - graph - INFO - Discarded lead due to past date: info@talleyamusements.com - 2026-03-06
+2026-03-13 10:41:57,492 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event Killeen Spring Carnival
+2026-03-13 10:41:57,496 - database - INFO - Successfully added lead: info@talleyamusements.com
+2026-03-13 10:41:57,496 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:41:57,497 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:41:57,497 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:41:58,334 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:41:58,335 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:41:58,338 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:41:58,338 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event Dallas Valley View Fair
+2026-03-13 10:41:58,339 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:41:58,340 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:41:58,340 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:41:58,340 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:41:59,004 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:41:59,006 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:41:59,008 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:41:59,008 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event Terrell Jubilee 2026
+2026-03-13 10:41:59,009 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:41:59,009 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:41:59,010 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:41:59,010 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:41:59,832 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:41:59,834 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:41:59,835 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:41:59,835 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event Crowley’s 75th Birthday Celebration
+2026-03-13 10:41:59,836 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:41:59,836 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:41:59,837 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:41:59,837 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:00,849 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:00,850 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:00,852 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:00,852 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 42nd Annual Grapevine Main Street Fest
+2026-03-13 10:42:00,852 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:00,853 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:00,853 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:00,853 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:01,950 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:01,952 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:01,953 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:01,953 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event San Diego County Fair 2026
+2026-03-13 10:42:01,954 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:01,954 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:01,954 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:01,954 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:03,207 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:03,209 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:03,210 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:03,210 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 2026 Ohio State Fair
+2026-03-13 10:42:03,211 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:03,211 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:03,211 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:03,211 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:03,897 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:03,898 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:03,899 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:03,899 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 98th Annual North Texas Fair & Rodeo
+2026-03-13 10:42:03,900 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:03,901 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:03,901 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:03,901 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:04,614 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:04,615 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:04,616 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:04,617 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 2026 Minnesota State Fair
+2026-03-13 10:42:04,617 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:04,618 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:04,618 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:04,618 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:05,455 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:05,456 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:05,458 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:05,458 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 2026 Annual St. Jude Catholic Church Carnival
+2026-03-13 10:42:05,459 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:05,459 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:05,459 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:05,460 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:06,172 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:06,174 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:06,175 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:06,175 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 40th Annual GrapeFest
+2026-03-13 10:42:06,176 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:06,176 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:06,176 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:06,176 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:06,856 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:06,857 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:06,858 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:06,858 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event State Fair of Texas
+2026-03-13 10:42:06,859 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:06,859 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:06,859 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:06,860 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:07,690 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:07,692 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:07,693 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:07,693 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 19th McKinney Oktoberfest
+2026-03-13 10:42:07,694 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:07,694 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:07,694 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:07,695 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:08,432 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:08,433 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:08,434 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:08,434 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 57th Annual Texas Rice Festival
+2026-03-13 10:42:08,435 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:08,435 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:08,436 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:08,436 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:09,362 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:09,363 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:09,364 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:09,365 - graph - INFO - Extracted valid lead: info@talleyamusements.com for event 99th Annual Austin County Fair & Rodeo
+2026-03-13 10:42:09,366 - database - INFO - Lead with email info@talleyamusements.com already exists. Skipping.
+2026-03-13 10:42:09,366 - graph - INFO - Immediately saved lead to DB: info@talleyamusements.com
+2026-03-13 10:42:09,366 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/3ede4cb5573f728814455d0d3046f681
+2026-03-13 10:42:09,366 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@talleyamusements.com', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Talley', 'LNAME': 'Amusements', 'ADDRESS': {'addr1': 'https://talleyamusements.com/events/', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:10,387 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:10,389 - tools - INFO - Successfully added/updated info@talleyamusements.com in Mailchimp.
+2026-03-13 10:42:10,390 - graph - INFO - Immediately synced to Mailchimp: info@talleyamusements.com
+2026-03-13 10:42:10,391 - tools - INFO - Scraping URL: https://informatedfw.com/dallas-march-2026-event-guide/
+2026-03-13 10:42:11,364 - tools - INFO - Scraping URL: https://www.keranews.org/arts-culture/2025-12-31/north-texas-festivals-events-2026
+2026-03-13 10:42:12,239 - tools - INFO - Scraping URL: https://texasbob.com/event/type.php?type=1
+2026-03-13 10:42:12,777 - tools - ERROR - Failed to scrape https://texasbob.com/event/type.php?type=1: 403 Client Error: Forbidden for url: https://texasbob.com/event/type.php?type=1
+2026-03-13 10:42:12,779 - tools - INFO - Scraping URL: https://festivalnet.com/fairs-festivals/Texas
+2026-03-13 10:42:14,813 - tools - INFO - Scraping URL: https://www.dallasnews.com/arts-entertainment/things-to-do/2026/03/06/fun-things-to-do-in-dallas-fort-worth-for-the-week-of-march-6-march-12/
+2026-03-13 10:42:15,873 - tools - INFO - Scraping URL: https://www.texasfairs.com/events/filters/iso=1
+2026-03-13 10:42:21,041 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:42:21,042 - graph - INFO - Discarded lead due to past date: texasfairsandevents@gmail.com - 2027-01-01
+2026-03-13 10:42:21,043 - tools - INFO - Scraping URL: https://www.edenprairiemn.gov/Home/Components/Calendar/Event/21715/1830?date=20170427074035
+2026-03-13 10:42:22,254 - tools - ERROR - Failed to scrape https://www.edenprairiemn.gov/Home/Components/Calendar/Event/21715/1830?date=20170427074035: 403 Client Error: Forbidden for url: https://www.edenprairiemn.gov/Home/Components/Calendar/Event/21715/1830?date=20170427074035
+2026-03-13 10:42:22,256 - tools - INFO - Scraping URL: https://www.harmonynation.org/mishowcase2026
+2026-03-13 10:42:23,177 - tools - INFO - Scraping URL: https://www.farmingtonmn.gov/Calendar.aspx?EID=1433
+2026-03-13 10:42:24,764 - tools - INFO - Scraping URL: https://scboston.org/event/rock-stars-on-ice/
+2026-03-13 10:42:27,901 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:42:27,904 - graph - INFO - Discarded lead due to past date: club.info@scboston.org - 2025-05-24
+2026-03-13 10:42:27,905 - tools - INFO - Scraping URL: https://usfigureskating.org/sports/compete
+2026-03-13 10:42:28,882 - tools - INFO - Scraping URL: https://www.disneyonice.com/
+2026-03-13 10:42:29,769 - tools - INFO - Scraping URL: https://www.fsuniverse.net/forum/threads/ice-dance-internationals-the-seasons-2026-tour-feb-28-march-21-with-papadakis-czisny-rohene-ward-the-browns-more.113751/
+2026-03-13 10:42:31,341 - tools - INFO - Scraping URL: https://www.fargodome.com/events/detail/doi-26
+2026-03-13 10:42:32,074 - tools - INFO - Scraping URL: https://www.simpletix.com/e/the-seasons-sun-valley-idaho-tickets-252289
+2026-03-13 10:42:35,961 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:42:35,963 - graph - INFO - Discarded lead due to past date: douglas@icedanceinternational.org - 2026-03-10
+2026-03-13 10:42:35,964 - tools - INFO - Scraping URL: https://www.ndtourism.com/listings/events
+2026-03-13 10:42:38,761 - tools - INFO - Scraping URL: https://discovernepa.com/event/jason-bishop-straight-up-magic/2026-03-15/
+2026-03-13 10:42:39,222 - tools - ERROR - Failed to scrape https://discovernepa.com/event/jason-bishop-straight-up-magic/2026-03-15/: 403 Client Error: Forbidden for url: https://discovernepa.com/event/jason-bishop-straight-up-magic/2026-03-15/
+2026-03-13 10:42:39,224 - tools - INFO - Scraping URL: https://www.nypl.org/events/programs/2026/03/15/looney-louies-juggling-magic-show
+2026-03-13 10:42:40,721 - tools - INFO - Scraping URL: https://swboston.macaronikid.com/events/69a2e1e596f241a51aa603e7/magic-show
+2026-03-13 10:42:45,281 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-13 10:42:45,283 - graph - INFO - Extracted valid lead: info@thankstoyanks.org for event Magic Show
+2026-03-13 10:42:45,286 - database - INFO - Successfully added lead: info@thankstoyanks.org
+2026-03-13 10:42:45,286 - graph - INFO - Immediately saved lead to DB: info@thankstoyanks.org
+2026-03-13 10:42:45,287 - mailchimp3.client - INFO - PUT Request: https://us8.api.mailchimp.com/3.0/lists/3d7d959f3d/members/6a1e608cd1072f37fe9ae30d6d905599
+2026-03-13 10:42:45,287 - mailchimp3.client - INFO - PAYLOAD: {'email_address': 'info@thankstoyanks.org', 'status_if_new': 'subscribed', 'status': 'subscribed', 'merge_fields': {'FNAME': 'Tommy', 'LNAME': 'James', 'ADDRESS': {'addr1': 'https://swboston.macaronikid.com/events/69a2e1e596f241a51aa603e7/magic-show', 'city': '.', 'state': '.', 'zip': '.', 'country': 'US'}}}
+2026-03-13 10:42:46,319 - mailchimp3.client - INFO - PUT Response: 200
+2026-03-13 10:42:46,320 - tools - INFO - Successfully added/updated info@thankstoyanks.org in Mailchimp.
+2026-03-13 10:42:46,323 - graph - INFO - Immediately synced to Mailchimp: info@thankstoyanks.org
+2026-03-13 10:42:46,324 - tools - INFO - Scraping URL: https://www.broadway.com/shows/jamie-allans-amaze/event/21751132/03-15-2026/1200/
+2026-03-13 10:42:47,113 - tools - INFO - Scraping URL: https://americanarenas.com/magic-shows/
+2026-03-13 10:42:48,865 - tools - INFO - Scraping URL: https://www.newyorkcitytheatre.com/dates/2026/03/category/magic
+2026-03-13 10:42:50,393 - tools - INFO - Scraping URL: https://theater.guide/magic-shows/
+2026-03-13 10:42:51,395 - tools - INFO - Scraping URL: https://www.instagram.com/popular/new-york-magic-shows-2026/
+2026-03-13 10:42:52,678 - tools - INFO - Scraping URL: https://seatgeek.com/magic-tickets
+2026-03-13 10:42:53,053 - tools - ERROR - Failed to scrape https://seatgeek.com/magic-tickets: 403 Client Error: Forbidden for url: https://seatgeek.com/magic-tickets
+2026-03-13 10:42:53,055 - tools - INFO - Scraping URL: https://justinwillman.com/tour
+2026-03-13 10:42:53,680 - tools - INFO - Scraping URL: https://countyfairgrounds.net/statefairs/statefairs.php
+2026-03-13 10:42:54,084 - tools - ERROR - Failed to scrape https://countyfairgrounds.net/statefairs/statefairs.php: 403 Client Error: Forbidden for url: https://countyfairgrounds.net/statefairs/statefairs.php
+2026-03-13 10:42:54,086 - tools - INFO - Scraping URL: https://worldpopulationreview.com/state-rankings/state-fairs-by-state
+2026-03-13 10:42:54,743 - tools - INFO - Scraping URL: https://bigtex.com/schedule/
+2026-03-13 10:42:55,295 - tools - ERROR - Failed to scrape https://bigtex.com/schedule/: 403 Client Error: Forbidden for url: https://bigtex.com/schedule/
+2026-03-13 10:42:55,296 - tools - INFO - Scraping URL: https://www.youtube.com/watch?v=uGLJSrHOsvo
+2026-03-13 10:42:57,485 - tools - INFO - Scraping URL: https://carnivalwarehouse.com/tracker-viewer.asp?mode=generic&filterKey=statefairs
+2026-03-13 10:43:08,699 - tools - ERROR - Failed to scrape https://carnivalwarehouse.com/tracker-viewer.asp?mode=generic&filterKey=statefairs: HTTPSConnectionPool(host='carnivalwarehouse.com', port=443): Max retries exceeded with url: /tracker-viewer.asp?mode=generic&filterKey=statefairs (Caused by NameResolutionError("HTTPSConnection(host='carnivalwarehouse.com', port=443): Failed to resolve 'carnivalwarehouse.com' ([Errno 11001] getaddrinfo failed)"))
+2026-03-13 10:43:08,700 - tools - INFO - Scraping URL: https://www.msn.com/en-us/video/music/state-fair-of-texas-announces-dates-for-2026-season/vi-AA1QGX78?ocid=iehplc
+2026-03-13 10:43:09,574 - tools - INFO - Scraping URL: https://www.eventseye.com/fairs/cd1_trade-shows_usa-united-states-of-america_march_1_2.html
+2026-03-13 10:43:10,356 - tools - INFO - Scraping URL: https://www.centraltexasstatefair.com/events/2026/carnival
+2026-03-13 10:43:12,002 - tools - INFO - Scraping URL: https://www.facebook.com/SanAntonioThingsToDo/posts/discover-march-2026-events-in-san-antonio-for-adults-including-concerts-festival/1242028751408014/
+2026-03-13 10:43:12,655 - tools - ERROR - Failed to scrape https://www.facebook.com/SanAntonioThingsToDo/posts/discover-march-2026-events-in-san-antonio-for-adults-including-concerts-festival/1242028751408014/: 400 Client Error: Bad Request for url: https://www.facebook.com/SanAntonioThingsToDo/posts/discover-march-2026-events-in-san-antonio-for-adults-including-concerts-festival/1242028751408014/
+2026-03-13 10:43:12,658 - tools - INFO - Scraping URL: https://www.facebook.com/SanAntonioFood/posts/-the-2026-sanantoniorodeo-is-back-feb-12-mar-1-2026-from-heart-stopping-rodeo-ac/1476107107215926/
+2026-03-13 10:43:13,290 - tools - ERROR - Failed to scrape https://www.facebook.com/SanAntonioFood/posts/-the-2026-sanantoniorodeo-is-back-feb-12-mar-1-2026-from-heart-stopping-rodeo-ac/1476107107215926/: 400 Client Error: Bad Request for url: https://www.facebook.com/SanAntonioFood/posts/-the-2026-sanantoniorodeo-is-back-feb-12-mar-1-2026-from-heart-stopping-rodeo-ac/1476107107215926/
+2026-03-13 10:43:13,292 - tools - INFO - Scraping URL: https://theater.guide/broadway/shows-on-tour/
+2026-03-13 10:43:14,135 - tools - INFO - Scraping URL: https://www.los-angeles-theatre.com/dates/2026/03/category/concert
+2026-03-13 10:43:14,807 - tools - INFO - Scraping URL: https://dolosangeles.com/events/concerts-music-festivals/2026/03/15
+2026-03-13 10:43:16,900 - tools - INFO - Scraping URL: https://www.discoverlosangeles.com/things-to-do/coming-soon-the-best-of-los-angeles
+2026-03-13 10:43:18,173 - tools - INFO - Scraping URL: https://www.facebook.com/dayseeker/posts/all-2026-touring-dates-so-far-%F0%9D%90%94%F0%9D%90%8D%F0%9D%90%88%F0%9D%90%93%F0%9D%90%84%F0%9D%90%83-%F0%9D%90%8A%F0%9D%90%88%F0%9D%90%8D%F0%9D%90%86%F0%9D%90%83%F0%9D%90%8E%F0%9D%90%8C-%F0%9D%90%84%F0%9D%90%94%F0%9D%90%91%F0%9D%90%8E%F0%9D%90%8F%F0%9D%90%84-%F0%9D%90%93%F0%9D%90%8E%F0%9D%90%94%F0%9D%90%91-supporting-motionless-i/1470537184439160/
+2026-03-13 10:43:18,772 - tools - ERROR - Failed to scrape https://www.facebook.com/dayseeker/posts/all-2026-touring-dates-so-far-%F0%9D%90%94%F0%9D%90%8D%F0%9D%90%88%F0%9D%90%93%F0%9D%90%84%F0%9D%90%83-%F0%9D%90%8A%F0%9D%90%88%F0%9D%90%8D%F0%9D%90%86%F0%9D%90%83%F0%9D%90%8E%F0%9D%90%8C-%F0%9D%90%84%F0%9D%90%94%F0%9D%90%91%F0%9D%90%8E%F0%9D%90%8F%F0%9D%90%84-%F0%9D%90%93%F0%9D%90%8E%F0%9D%90%94%F0%9D%90%91-supporting-motionless-i/1470537184439160/: 400 Client Error: Bad Request for url: https://www.facebook.com/dayseeker/posts/all-2026-touring-dates-so-far-%F0%9D%90%94%F0%9D%90%8D%F0%9D%90%88%F0%9D%90%93%F0%9D%90%84%F0%9D%90%83-%F0%9D%90%8A%F0%9D%90%88%F0%9D%90%8D%F0%9D%90%86%F0%9D%90%83%F0%9D%90%8E%F0%9D%90%8C-%F0%9D%90%84%F0%9D%90%94%F0%9D%90%91%F0%9D%90%8E%F0%9D%90%8F%F0%9D%90%84-%F0%9D%90%93%F0%9D%90%8E%F0%9D%90%94%F0%9D%90%91-supporting-motionless-i/1470537184439160/
+2026-03-13 10:43:18,774 - tools - INFO - Scraping URL: https://www.usatoday.com/story/entertainment/california/2026/01/15/10-major-music-tours-california-2026/88180221007/
+2026-03-13 10:43:20,129 - tools - INFO - Scraping URL: https://soundofmusicontour.com/tour/
+2026-03-13 10:43:23,988 - tools - INFO - Scraping URL: https://www.centertheatregroup.org/shows-tickets/taper/2025-26/here-lies-love/
+2026-03-13 10:43:25,221 - tools - INFO - Scraping URL: https://www.broadwayworld.com/article/What-Broadway-Shows-Are-On-Tour-Across-North-America-For-The-20242025-Season-A-Complete-Guide-20240126
+2026-03-13 10:43:26,456 - tools - INFO - Scraping URL: https://www.scfta.org/events/2026/six
+2026-03-13 10:43:29,573 - tools - INFO - Scraping URL: https://moulinrougemusical.com/us-tour/tickets/
+2026-03-13 10:43:30,194 - tools - INFO - Scraping URL: https://wizmusical.com/tour-dates/
+2026-03-13 10:43:30,751 - tools - ERROR - Failed to scrape https://wizmusical.com/tour-dates/: 403 Client Error: Forbidden for url: https://wizmusical.com/tour-dates/
+2026-03-13 10:43:30,753 - tools - INFO - Scraping URL: https://www.backtothefuturemusical.com/northamerica/tour-dates/
+2026-03-13 10:43:31,393 - tools - INFO - Scraping URL: https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/
+2026-03-13 10:43:31,805 - tools - ERROR - Failed to scrape https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/: 400 Client Error: Bad Request for url: https://www.facebook.com/whatsonstage/posts/heres-a-list-of-plays-starting-their-tours-in-2026-get-them-in-your-diaries-/1218765043617196/
+2026-03-13 10:43:31,807 - tools - INFO - Scraping URL: https://tour.harrypottertheplay.com/
+2026-03-13 10:43:32,539 - tools - INFO - Scraping URL: https://www.concertaddicts.com/new/concert-event-listings/usa/louisville-lexington/the-phil-collins-story--lexington-opera-house--2026-03-15--1ApZkuKGkd_ldIt/
+2026-03-13 10:43:33,322 - tools - ERROR - Failed to scrape https://www.concertaddicts.com/new/concert-event-listings/usa/louisville-lexington/the-phil-collins-story--lexington-opera-house--2026-03-15--1ApZkuKGkd_ldIt/: 520 Server Error: <none> for url: https://www.concertaddicts.com/new/concert-event-listings/usa/louisville-lexington/the-phil-collins-story--lexington-opera-house--2026-03-15--1ApZkuKGkd_ldIt/
+2026-03-13 10:43:33,324 - tools - INFO - Scraping URL: https://playbill.com/article/updates-on-current-and-upcoming-national-tours
+2026-03-13 10:43:34,205 - tools - INFO - Scraping URL: https://us.thephantomoftheopera.com/tour-dates
+2026-03-13 10:43:34,623 - graph - INFO - --- DB MANAGER NODE (pass-through, leads already saved) ---
+2026-03-13 10:43:34,624 - graph - INFO - --- MARKETING NODE (pass-through, leads already synced) ---
+2026-03-13 10:43:34,625 - graph - INFO - --- NOTIFIER NODE ---
+2026-03-13 10:43:34,625 - graph - INFO - Event Prospecting Agent Update:
+Found, saved, and added 21 new leads to Mailchimp.
+2026-03-13 10:43:34,625 - __main__ - INFO - Workflow completed successfully. Pushed 21 leads.
+2026-03-13 10:48:58,233 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-initiated-analytics "HTTP/1.1 200 OK"
+2026-03-13 10:48:58,737 - httpx - INFO - HTTP Request: GET https://api.gradio.app/pkg-version "HTTP/1.1 200 OK"
+2026-03-13 10:48:59,453 - __main__ - INFO - Starting Event Prospecting System...
+2026-03-13 10:48:59,463 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 10:48:59,464 - apscheduler.scheduler - INFO - Added job "run_agent_workflow" to job store "default"
+2026-03-13 10:48:59,464 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-13 10:48:59,465 - __main__ - INFO - APScheduler started. Job will run every 6 hours.
+2026-03-13 10:49:01,665 - httpx - INFO - HTTP Request: GET http://localhost:7860/gradio_api/startup-events "HTTP/1.1 200 OK"
+2026-03-13 10:49:03,715 - httpx - INFO - HTTP Request: HEAD http://localhost:7860/ "HTTP/1.1 200 OK"
+2026-03-13 10:49:04,642 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/telemetry/https%3A/api.gradio.app/gradio-launched-telemetry "HTTP/1.1 200 OK"

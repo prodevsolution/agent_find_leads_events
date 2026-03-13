@@ -308,13 +308,13 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
                 choices=["ALL", "INFO", "WARNING", "ERROR"],
                 value="ALL"
             )
+            clear_logs_btn = gr.Button("🗑️ Clear Log File", variant="secondary")
             log_display = gr.Code(
                 label="Recent Activity",
                 language="python",
                 lines=20,
                 interactive=False
             )
-            clear_logs_btn = gr.Button("🗑️ Clear Log File", variant="secondary")
 
     # Auto-refresh timer: fires every 5 seconds, active only while agents are running
     live_timer = gr.Timer(value=5, active=False)
