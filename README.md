@@ -34,6 +34,7 @@ The system needs various keys and parameters to function properly. Configure the
 - `OPENAI_API_KEY`: The API key for OpenAI's models (mandatory if `LLM_PROVIDER=openai`).
 - `TAVILY_API_KEY`: API key for Tavily search (used by agents to run web searches).
 
+
 ### LLM Options (OpenAI vs. Ollama)
 You can choose between using OpenAI's cloud API or a local LLM via Ollama.
 - `LLM_PROVIDER`: Set to `openai` (default) or `ollama`.
