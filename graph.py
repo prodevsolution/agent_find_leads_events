@@ -61,7 +61,9 @@ def get_llm():
         return ChatOllama(
             model=config.OLLAMA_MODEL,
             base_url=config.OLLAMA_BASE_URL,
-            temperature=0
+            temperature=0,
+            num_predict=config.OLLAMA_NUM_PREDICT,  # cap output tokens → faster
+            timeout=config.OLLAMA_TIMEOUT,           # avoid hanging forever
         )
     elif provider == "openai":
         logger.info("Using OpenAI LLM (gpt-4o-mini)")
@@ -69,6 +71,19 @@ def get_llm():
     else:
         logger.info("Using Google Gemini LLM (gemini-2.0-flash)")
         return ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+
+# Cache LLM singleton so it is not re-instantiated on every scheduler run
+_llm_instance = None
+_llm_structured = None
+
+def get_structured_llm():
+    """Returns a cached, structured-output LLM instance."""
+    global _llm_instance, _llm_structured
+    if _llm_structured is None:
+        _llm_instance = get_llm()
+        _llm_structured = _llm_instance.with_structured_output(ExtractedLeads)
+        logger.info("LLM instance created and cached.")
+    return _llm_structured
 
 
 # --- Nodes ---
@@ -99,7 +114,7 @@ def scraper_node(state: GraphState):
     so progress is visible in real-time.
     """
     logger.info("--- SCRAPER NODE ---")
-    llm = get_llm().with_structured_output(ExtractedLeads)
+    llm = get_structured_llm()  # use cached instance
     valid_leads = []
     saved_leads_info = []
     marketed_emails = []
@@ -113,12 +128,13 @@ def scraper_node(state: GraphState):
                 
             # If we found at least one email via regex, use LLM to extract context
             if scraped_data.get("emails"):
+                content_limit = config.SCRAPER_CONTENT_LIMIT  # shorter = faster for local LLMs
                 prompt = (
                     f"Analyze the following event page content and identify contact leads (email, phone, name). "
                     f"Also identify the event name and dates. The current date is {current_date_str}. "
                     f"If the event start date is already past compared to the current date, set is_valid_date to False. "
                     f"If you can't determine the date, assume it's valid (True). "
-                    f"The page URL is: {url}\n\nContent:\n{scraped_data['content'][:5000]}"
+                    f"The page URL is: {url}\n\nContent:\n{scraped_data['content'][:content_limit]}"
                 )
                 
                 extraction = llm.invoke(prompt)

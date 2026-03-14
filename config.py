@@ -17,6 +17,9 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL") or "phi4-mini"
+OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "60"))       # seconds per request
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "512"))  # max output tokens
+SCRAPER_CONTENT_LIMIT = int(os.getenv("SCRAPER_CONTENT_LIMIT", "2000"))  # chars sent to LLM
 
 
 # MAILCHIMP CONFIGURATION
