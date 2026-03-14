@@ -16,7 +16,7 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 # LLM CONFIGURATION
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi4-mini")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL") or "phi4-mini"
 
 
 # MAILCHIMP CONFIGURATION
