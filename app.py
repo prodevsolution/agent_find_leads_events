@@ -3,6 +3,7 @@ import time
 import logging
 from datetime import datetime, timedelta
 import threading
+import json
 
 import gradio as gr
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -35,7 +36,16 @@ DEFAULT_NICHES = [
     "Touring musical productions", "County fairs", "State fairs", "Agricultural shows"
 ]
 
+NICHES_FILE = "active_niches.json"
+
 def get_initial_niches():
+    if os.path.exists(NICHES_FILE):
+        try:
+            with open(NICHES_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading {NICHES_FILE}: {e}")
+
     niches = set([n.lower() for n in DEFAULT_NICHES])
     extra_str = os.getenv("EXTRA_NICHES", "")
     if extra_str:
@@ -45,7 +55,16 @@ def get_initial_niches():
                 niches.add(ext)
     
     # Capitalize for display and sort
-    return sorted([n.capitalize() for n in niches])
+    initial_niches = sorted([n.capitalize() for n in niches])
+    save_niches(initial_niches)
+    return initial_niches
+
+def save_niches(niches):
+    try:
+        with open(NICHES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(niches, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving {NICHES_FILE}: {e}")
 
 active_niches = get_initial_niches()
 
@@ -61,6 +80,7 @@ def add_niche(new_niche: str):
             
     active_niches.append(new_niche)
     active_niches.sort()
+    save_niches(active_niches)
     logger.info(f"Added new niche: {new_niche}")
     return f"Added '{new_niche}' successfully.", gr.Dropdown(choices=active_niches)
 
@@ -71,6 +91,7 @@ def remove_niche(selected_niche: str):
     for i, existing in enumerate(active_niches):
         if existing == selected_niche:
             removed = active_niches.pop(i)
+            save_niches(active_niches)
             logger.info(f"Removed niche: {removed}")
             return f"Removed '{removed}' successfully.", gr.Dropdown(choices=active_niches, value=None)
             
@@ -167,15 +188,23 @@ def get_recent_logs(level_filter="ALL"):
     except Exception as e:
         return f"Error reading logs: {e}"
 
-def refresh_dashboard(log_level="ALL"):
+def refresh_dashboard(log_level="ALL", page=1):
     stats = repository.get_stats()
-    leads = repository.get_recent_leads(10)
+    all_leads = repository.get_recent_leads(None)
     logs = get_recent_logs(log_level)
+    
+    items_per_page = 10
+    total_pages = max(1, (len(all_leads) + items_per_page - 1) // items_per_page)
+    page = max(1, min(page, total_pages))
+    
+    start_idx = (page - 1) * items_per_page
+    end_idx = start_idx + items_per_page
+    leads_to_show = all_leads[start_idx:end_idx]
     
     # Formatting for Grid
     recent_leads_data = [
         [lead.name or "N/A", lead.email, lead.event_name or "N/A", lead.event_url or "N/A", lead.status] 
-        for lead in leads
+        for lead in leads_to_show
     ]
     
     # Updating NEXT_RUN logic dynamically
@@ -199,7 +228,7 @@ def refresh_dashboard(log_level="ALL"):
     - **Responses Detected**: {stats['responded_count']}
     """
     
-    return status_markdown, stats_markdown, recent_leads_data, logs
+    return status_markdown, stats_markdown, recent_leads_data, logs, f"Page {page} of {total_pages}", page
 
 def manual_trigger(start_date_ui, end_date_ui):
     if AGENT_STATUS == "Running":
@@ -211,22 +240,22 @@ def manual_trigger(start_date_ui, end_date_ui):
     
     return "[SUCCESS] Workflow triggered! The UI will auto-refresh while agents are running."
 
-def clear_db_action(log_level="ALL"):
+def clear_db_action(log_level="ALL", page=1):
     if AGENT_STATUS == "Running":
-        return "Cannot clear database while agents are running.", refresh_dashboard(log_level)
+        return "Cannot clear database while agents are running.", refresh_dashboard(log_level, page)
     success = repository.clear_database()
     if success:
-        return "Database cleared successfully.", refresh_dashboard(log_level)
-    return "Failed to clear database. Check logs.", refresh_dashboard(log_level)
+        return "Database cleared successfully.", refresh_dashboard(log_level, 1)
+    return "Failed to clear database. Check logs.", refresh_dashboard(log_level, page)
 
-def clear_logs_action(log_level="ALL"):
+def clear_logs_action(log_level="ALL", page=1):
     """Truncates the log file and refreshes UI."""
     try:
         with open(log_file, "w", encoding='utf-8') as f:
             f.write("")
-        return "Logs cleared.", refresh_dashboard(log_level)
+        return "Logs cleared.", refresh_dashboard(log_level, page)
     except Exception as e:
-        return f"Error clearing logs: {e}", refresh_dashboard(log_level)
+        return f"Error clearing logs: {e}", refresh_dashboard(log_level, page)
 
 def stop_server_action():
     logger.info("Stopping Server gracefully via UI...")
@@ -241,6 +270,7 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     with gr.Row():
         status_panel = gr.Markdown("Loading status...")
         stats_panel = gr.Markdown("Loading stats...")
+        current_page = gr.State(1)
         
     with gr.Row():
         with gr.Column():
@@ -292,13 +322,17 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
 
             
         with gr.Column():
-            gr.Markdown("### 👥 Recent Leads (Top 10)")
+            gr.Markdown("### 👥 All Leads (Paginated)")
             leads_table = gr.Dataframe(
                 headers=["Name", "Email", "Event", "Address", "Status"],
                 datatype=["str", "str", "str", "str", "str"],
                 column_count=(5, "fixed"),
                 interactive=False
             )
+            with gr.Row():
+                prev_page_btn = gr.Button("◀ Previous")
+                page_info = gr.Markdown("Page 1 of 1")
+                next_page_btn = gr.Button("Next ▶")
             refresh_btn = gr.Button("Refresh Dashboard")
 
         with gr.Column():
@@ -319,45 +353,63 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     # Auto-refresh timer: fires every 5 seconds, active only while agents are running
     live_timer = gr.Timer(value=5, active=False)
     
-    def auto_refresh(level):
+    def auto_refresh(level, page):
         """Called by timer - returns dashboard data + updates timer active state."""
-        s, st, tbl, logs = refresh_dashboard(level)
+        s, st, tbl, logs, p_info, p_num = refresh_dashboard(level, page)
         # Keep timer active while workflow is running, deactivate when idle
         is_running = (AGENT_STATUS == "Running")
-        return s, st, tbl, logs, gr.Timer(active=is_running)
+        return s, st, tbl, logs, p_info, p_num, gr.Timer(active=is_running)
 
     live_timer.tick(
         fn=auto_refresh,
-        inputs=[log_filter],
-        outputs=[status_panel, stats_panel, leads_table, log_display, live_timer]
+        inputs=[log_filter, current_page],
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, live_timer]
     )
 
     # Wire up events
     refresh_btn.click(
         fn=refresh_dashboard,
-        inputs=[log_filter],
-        outputs=[status_panel, stats_panel, leads_table, log_display]
+        inputs=[log_filter, current_page],
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+    )
+    
+    def go_prev_page(level, page):
+        return refresh_dashboard(level, page - 1)
+        
+    def go_next_page(level, page):
+        return refresh_dashboard(level, page + 1)
+        
+    prev_page_btn.click(
+        fn=go_prev_page,
+        inputs=[log_filter, current_page],
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+    )
+    
+    next_page_btn.click(
+        fn=go_next_page,
+        inputs=[log_filter, current_page],
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page]
     )
     
     # Wrapper for clear DB
-    def clear_db_wrapper(level):
-        msg, (s1, s2, table, logs) = clear_db_action(level)
-        return msg, s1, s2, table, logs
+    def clear_db_wrapper(level, page):
+        msg, (s1, s2, table, logs, p_info, p_num) = clear_db_action(level, page)
+        return msg, s1, s2, table, logs, p_info, p_num
         
     clear_db_btn.click(
         fn=clear_db_wrapper,
-        inputs=[log_filter],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display]
+        inputs=[log_filter, current_page],
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page]
     )
 
-    def clear_logs_wrapper(level):
-        msg, (s1, s2, table, logs) = clear_logs_action(level)
-        return msg, s1, s2, table, logs
+    def clear_logs_wrapper(level, page):
+        msg, (s1, s2, table, logs, p_info, p_num) = clear_logs_action(level, page)
+        return msg, s1, s2, table, logs, p_info, p_num
 
     clear_logs_btn.click(
         fn=clear_logs_wrapper,
-        inputs=[log_filter],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display]
+        inputs=[log_filter, current_page],
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page]
     )
     
     stop_server_btn.click(
@@ -367,18 +419,18 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     )
     
     # Wrapper for trigger: starts the workflow, activates the live timer
-    def trigger_wrapper(start_date, end_date, level):
+    def trigger_wrapper(start_date, end_date, level, page):
         msg = manual_trigger(start_date, end_date)
-        s, st, tbl, logs = refresh_dashboard(level)
-        return msg, s, st, tbl, logs, gr.Timer(active=True)
+        s, st, tbl, logs, p_info, p_num = refresh_dashboard(level, page)
+        return msg, s, st, tbl, logs, p_info, p_num, gr.Timer(active=True)
         
     trigger_btn.click(
         fn=trigger_wrapper,
-        inputs=[start_date_input, end_date_input, log_filter],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, live_timer]
+        inputs=[start_date_input, end_date_input, log_filter, current_page],
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, live_timer]
     )
 
-    demo.load(refresh_dashboard, inputs=[log_filter], outputs=[status_panel, stats_panel, leads_table, log_display])
+    demo.load(refresh_dashboard, inputs=[log_filter, current_page], outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page])
 
 
 if __name__ == "__main__":

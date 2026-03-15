@@ -1,6 +1,6 @@
 import os
 import logging
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import IntegrityError
 from config import DATABASE_URL
@@ -18,7 +18,7 @@ class Lead(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=True)
-    email = Column(String(255), unique=True, nullable=False)
+    email = Column(String(255), nullable=False)
     phone = Column(String(50), nullable=True)
     event_name = Column(String(255), nullable=True)
     event_url = Column(Text, nullable=True)
@@ -32,6 +32,10 @@ class Lead(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('email', 'event_name', name='uix_email_event_name'),
+    )
 
 
 class LeadRepository:
@@ -53,9 +57,9 @@ class LeadRepository:
         session = self.SessionLocal()
         try:
             # Check if lead already exists to avoid throwing IntegrityError repeatedly
-            existing_lead = session.query(Lead).filter_by(email=lead_data.get('email')).first()
+            existing_lead = session.query(Lead).filter_by(email=lead_data.get('email'), event_name=lead_data.get('event_name')).first()
             if existing_lead:
-                logger.debug(f"Lead with email {lead_data.get('email')} already exists. Skipping.")
+                logger.debug(f"Lead with email {lead_data.get('email')} for event {lead_data.get('event_name')} already exists. Skipping.")
                 return existing_lead, False
             
             new_lead = Lead(**lead_data)
@@ -66,9 +70,9 @@ class LeadRepository:
             return new_lead, True
         except IntegrityError:
             session.rollback()
-            logger.warning(f"Integrity error (duplicate email): {lead_data.get('email')}")
+            logger.warning(f"Integrity error (duplicate email & event): {lead_data.get('email')} @ {lead_data.get('event_name')}")
             # Try to fetch it again if it was a race condition
-            existing = session.query(Lead).filter_by(email=lead_data.get('email')).first()
+            existing = session.query(Lead).filter_by(email=lead_data.get('email'), event_name=lead_data.get('event_name')).first()
             return existing, False
         except Exception as e:
             session.rollback()
@@ -90,13 +94,13 @@ class LeadRepository:
         finally:
             session.close()
 
-    def update_lead_status(self, email: str, status: str, campaign_sent: bool = None, response_detected: bool = None):
+    def update_lead_status(self, lead_id: int, status: str, campaign_sent: bool = None, response_detected: bool = None):
         """
         Updates the status or flags of a lead.
         """
         session = self.SessionLocal()
         try:
-            lead = session.query(Lead).filter_by(email=email).first()
+            lead = session.query(Lead).filter_by(id=lead_id).first()
             if lead:
                 lead.status = status
                 if campaign_sent is not None:
@@ -108,12 +112,12 @@ class LeadRepository:
             return False
         except Exception as e:
             session.rollback()
-            logger.error(f"Error updating lead {email}: {str(e)}")
+            logger.error(f"Error updating lead {lead_id}: {str(e)}")
             return False
         finally:
             session.close()
 
-    def get_recent_leads(self, limit: int = 10):
+    def get_recent_leads(self, limit: int = None):
         """
         Fetches the most recently added leads.
         """

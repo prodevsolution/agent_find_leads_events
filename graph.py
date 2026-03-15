@@ -176,14 +176,17 @@ def scraper_node(state: GraphState):
                         # This avoids redundant API calls and potential validation errors on every run
                         if is_new:
                             logger.info(f"Immediately saved lead to DB: {db_lead.email}")
-                            name_parts = (lead.name or "").split(" ")
-                            first_name = name_parts[0] if name_parts else ""
-                            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-                            success = add_lead_to_mailchimp(db_lead.email, first_name, last_name, lead.event_url or "")
-                            if success:
-                                repository.update_lead_status(db_lead.email, status='marketed', campaign_sent=True)
-                                marketed_emails.append(db_lead.email)
-                                logger.info(f"Immediately synced to Mailchimp: {db_lead.email}")
+                            if config.ENABLE_MAILCHIMP_SYNC:
+                                name_parts = (lead.name or "").split(" ")
+                                first_name = name_parts[0] if name_parts else ""
+                                last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+                                success = add_lead_to_mailchimp(db_lead.email, first_name, last_name, lead.event_url or "")
+                                if success:
+                                    repository.update_lead_status(db_lead.id, status='marketed', campaign_sent=True)
+                                    marketed_emails.append(db_lead.email)
+                                    logger.info(f"Immediately synced to Mailchimp: {db_lead.email}")
+                            else:
+                                logger.info(f"Mailchimp sync bypass enabled. Lead {db_lead.email} stored as new.")
                         else:
                             logger.info(f"Lead {db_lead.email} already exists, skipping Mailchimp sync.")
                     # ------ END IMMEDIATE SAVE ------

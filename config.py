@@ -13,6 +13,11 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # TAVILY API KEY FOR SEARCH
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
+# SEARCH CONFIGURATION
+_DEFAULT_EXCLUDE = "ticketmaster.com,seatgeek.com,vividseats.com,stubhub.com,eventbrite.com,facebook.com,10times.com,carnivalwarehouse.com,castatefair.com,sanjosetheaters.org,feverup.com"
+EXCLUDE_DOMAINS_STR = os.getenv("EXCLUDE_DOMAINS", _DEFAULT_EXCLUDE)
+EXCLUDE_DOMAINS = [d.strip() for d in EXCLUDE_DOMAINS_STR.split(",") if d.strip()]
+
 # LLM CONFIGURATION
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -23,6 +28,7 @@ SCRAPER_CONTENT_LIMIT = int(os.getenv("SCRAPER_CONTENT_LIMIT", "2000"))  # chars
 
 
 # MAILCHIMP CONFIGURATION
+ENABLE_MAILCHIMP_SYNC = os.getenv("ENABLE_MAILCHIMP_SYNC", "false").lower() in ("true", "1", "yes")
 MAILCHIMP_API_KEY = os.getenv("MAILCHIMP_API_KEY")
 MAILCHIMP_SERVER_PREFIX = os.getenv("MAILCHIMP_SERVER_PREFIX")
 MAILCHIMP_LIST_ID = os.getenv("MAILCHIMP_LIST_ID")

@@ -17,6 +17,8 @@ from config import (
     TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, TO_PHONE_NUMBER,
     SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASS, TO_EMAIL
 )
+import config
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,10 @@ def search_events(query: str, start_date: str = None, end_date: str = None) -> l
 
     # Use Tavily API REST endpoint directly for simplicity and control
     url = "https://api.tavily.com/search"
+    
+    # Exclude major ticketing/aggregator sites that aggressively block basic scrapers
+    excluded_domains = config.EXCLUDE_DOMAINS
+    
     payload = {
         "api_key": TAVILY_API_KEY,
         "query": full_query,
@@ -51,7 +57,8 @@ def search_events(query: str, start_date: str = None, end_date: str = None) -> l
         "include_answer": False,
         "include_images": False,
         "include_raw_content": False,
-        "max_results": 10
+        "max_results": 10,
+        "exclude_domains": excluded_domains
     }
     
     try:
