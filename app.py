@@ -430,8 +430,11 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
         outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, live_timer]
     )
 
-    demo.load(refresh_dashboard, inputs=[log_filter, current_page], outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page])
+    def load_niches_for_ui():
+        return gr.Dropdown(choices=active_niches)
 
+    demo.load(refresh_dashboard, inputs=[log_filter, current_page], outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page])
+    demo.load(load_niches_for_ui, inputs=[], outputs=[niche_list_ui])
 
 if __name__ == "__main__":
     logger.info("Starting Event Prospecting System...")
