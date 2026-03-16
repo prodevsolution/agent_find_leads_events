@@ -10,6 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from database import repository
 from graph import app_graph
+import config
 
 # Configure logging to both console and file
 log_file = "agent.log"
@@ -126,6 +127,8 @@ def run_agent_workflow(override_start=None, override_end=None):
         start_date = override_start
     if override_end:
         end_date = override_end
+    else:
+        end_date = "9999-12-31" # Default if not provided
         
     # Construct base queries
     queries = [f"{niche} events" for niche in active_niches]
@@ -228,14 +231,51 @@ def refresh_dashboard(log_level="ALL", page=1):
     - **Responses Detected**: {stats['responded_count']}
     """
     
-    return status_markdown, stats_markdown, recent_leads_data, logs, f"Page {page} of {total_pages}", page
+    btn_label = "Running Agents..." if AGENT_STATUS == "Running" else "Run Agents Now"
+    btn_interactive = (AGENT_STATUS != "Running")
+
+    return status_markdown, stats_markdown, recent_leads_data, logs, f"Page {page} of {total_pages}", page, gr.update(value=btn_label, interactive=btn_interactive)
 
 def manual_trigger(start_date_ui, end_date_ui):
     if AGENT_STATUS == "Running":
         return "Agents are already running. Please wait..."
     
+    # Validation logic
+    now_str = format_date(datetime.now())
+    try:
+        def to_str(val):
+            if not val: return None
+            if isinstance(val, (int, float)):
+                # Handle milliseconds vs seconds
+                if val > 1e11: 
+                    val /= 1000.0
+                dt_obj = datetime.fromtimestamp(val)
+                return format_date(dt_obj)
+            if isinstance(val, str):
+                return val
+            return format_date(val) # assuming it's a datetime object
+
+        s_date = to_str(start_date_ui)
+        e_date = to_str(end_date_ui) or "9999-12-31"
+
+        logger.info(f"UI Trigger Validation: Start={s_date}, End={e_date}, Now={now_str}")
+
+        if not s_date:
+            return "[ERROR] Start date is required."
+
+        if s_date < now_str:
+            return f"[ERROR] Start date ({s_date}) cannot be in the past (today is {now_str})."
+        if e_date <= s_date:
+            return f"[ERROR] End date ({e_date}) must be strictly after Start date ({s_date})."
+        
+        start_date_to_run = s_date
+        end_date_to_run = e_date
+    except Exception as e:
+        logger.error(f"Date validation error: {e}", exc_info=True)
+        return f"[ERROR] Date validation failed: {e}"
+
     # Run in a separate thread so Gradio doesn't block
-    thread = threading.Thread(target=run_agent_workflow, args=(start_date_ui, end_date_ui))
+    thread = threading.Thread(target=run_agent_workflow, args=(start_date_to_run, end_date_to_run))
     thread.start()
     
     return "[SUCCESS] Workflow triggered! The UI will auto-refresh while agents are running."
@@ -275,14 +315,18 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     with gr.Row():
         with gr.Column():
             gr.Markdown("### ⚙️ Manual Actions")
-            start_date_input = gr.Textbox(
-                label="Start Date Override (YYYY-MM-DD)", 
-                placeholder="Leave empty for default (Today + 2 days)"
+            d_start, d_end = get_default_dates()
+            start_date_input = gr.DateTime(
+                label="Start Date", 
+                value=d_start,
+                include_time=False
             )
-            end_date_input = gr.Textbox(
-                label="End Date Override (YYYY-MM-DD)", 
-                placeholder="Leave empty for default (Infinity)"
+            end_date_input = gr.DateTime(
+                label="End Date (Optional)", 
+                value=None, 
+                include_time=False
             )
+            gr.Markdown("> [!NOTE]\n> End date is optional. If left empty, search will encompass all future events.")
             trigger_btn = gr.Button("Run Agents Now", variant="primary")
             
             with gr.Row():
@@ -291,21 +335,43 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
                 
             trigger_output = gr.Textbox(label="Status Message", interactive=False)
             
-            gr.Markdown("### 🎯 Niche Management")
-            
-            with gr.Row():
-                niche_list_ui = gr.Dropdown(
-                    label="Active Niches",
-                    choices=active_niches,
-                    interactive=True
-                )
-                remove_niche_btn = gr.Button("Remove Selected")
-                
-            with gr.Row():
-                new_niche_input = gr.Textbox(label="New Niche", placeholder="e.g. Anime Conventions")
-                add_niche_btn = gr.Button("Add Niche")
-                
             add_niche_status = gr.Textbox(label="Niche Update Status", interactive=False)
+
+            gr.Markdown("### 🚫 Excluded Domains")
+            excluded_list = ", ".join(config.EXCLUDE_DOMAINS)
+            gr.Markdown(f"Searching will ignore leads from: `{excluded_list}`")
+            
+            with gr.Accordion("Manage Niches", open=True):
+                with gr.Row():
+                    niche_list_ui = gr.Dropdown(
+                        label="Active Niches (Used for search)",
+                        choices=active_niches,
+                        interactive=True
+                    )
+                    remove_niche_btn = gr.Button("Remove Selected")
+                
+                with gr.Row():
+                    default_niche_ui = gr.Dropdown(
+                        label="Default Niches",
+                        choices=DEFAULT_NICHES,
+                        interactive=True
+                    )
+                    add_default_btn = gr.Button("Add from Default")
+
+                with gr.Row():
+                    new_niche_input = gr.Textbox(label="New Custom Niche", placeholder="e.g. Anime Conventions")
+                    add_niche_btn = gr.Button("Add Custom Niche")
+                
+            def add_default_niche(niche):
+                if not niche:
+                    return "Select a niche first", gr.Dropdown(choices=active_niches)
+                return add_niche(niche)
+
+            add_default_btn.click(
+                fn=add_default_niche,
+                inputs=[default_niche_ui],
+                outputs=[add_niche_status, niche_list_ui]
+            )
             
             add_niche_btn.click(
                 fn=add_niche,
@@ -355,22 +421,22 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     
     def auto_refresh(level, page):
         """Called by timer - returns dashboard data + updates timer active state."""
-        s, st, tbl, logs, p_info, p_num = refresh_dashboard(level, page)
+        s, st, tbl, logs, p_info, p_num, btn_upd = refresh_dashboard(level, page)
         # Keep timer active while workflow is running, deactivate when idle
         is_running = (AGENT_STATUS == "Running")
-        return s, st, tbl, logs, p_info, p_num, gr.Timer(active=is_running)
+        return s, st, tbl, logs, p_info, p_num, btn_upd, gr.Timer(active=is_running)
 
     live_timer.tick(
         fn=auto_refresh,
         inputs=[log_filter, current_page],
-        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, live_timer]
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn, live_timer]
     )
 
     # Wire up events
     refresh_btn.click(
         fn=refresh_dashboard,
         inputs=[log_filter, current_page],
-        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn]
     )
     
     def go_prev_page(level, page):
@@ -382,34 +448,34 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     prev_page_btn.click(
         fn=go_prev_page,
         inputs=[log_filter, current_page],
-        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn]
     )
     
     next_page_btn.click(
         fn=go_next_page,
         inputs=[log_filter, current_page],
-        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+        outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn]
     )
     
     # Wrapper for clear DB
     def clear_db_wrapper(level, page):
-        msg, (s1, s2, table, logs, p_info, p_num) = clear_db_action(level, page)
-        return msg, s1, s2, table, logs, p_info, p_num
+        msg, (s1, s2, table, logs, p_info, p_num, b_upd) = clear_db_action(level, page)
+        return msg, s1, s2, table, logs, p_info, p_num, b_upd
         
     clear_db_btn.click(
         fn=clear_db_wrapper,
         inputs=[log_filter, current_page],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn]
     )
 
     def clear_logs_wrapper(level, page):
-        msg, (s1, s2, table, logs, p_info, p_num) = clear_logs_action(level, page)
-        return msg, s1, s2, table, logs, p_info, p_num
+        msg, (s1, s2, table, logs, p_info, p_num, b_upd) = clear_logs_action(level, page)
+        return msg, s1, s2, table, logs, p_info, p_num, b_upd
 
     clear_logs_btn.click(
         fn=clear_logs_wrapper,
         inputs=[log_filter, current_page],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page]
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn]
     )
     
     stop_server_btn.click(
@@ -421,19 +487,19 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     # Wrapper for trigger: starts the workflow, activates the live timer
     def trigger_wrapper(start_date, end_date, level, page):
         msg = manual_trigger(start_date, end_date)
-        s, st, tbl, logs, p_info, p_num = refresh_dashboard(level, page)
-        return msg, s, st, tbl, logs, p_info, p_num, gr.Timer(active=True)
+        s, st, tbl, logs, p_info, p_num, btn_upd = refresh_dashboard(level, page)
+        return msg, s, st, tbl, logs, p_info, p_num, btn_upd, gr.Timer(active=True)
         
     trigger_btn.click(
         fn=trigger_wrapper,
         inputs=[start_date_input, end_date_input, log_filter, current_page],
-        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, live_timer]
+        outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn, live_timer]
     )
 
     def load_niches_for_ui():
         return gr.Dropdown(choices=active_niches)
 
-    demo.load(refresh_dashboard, inputs=[log_filter, current_page], outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page])
+    demo.load(refresh_dashboard, inputs=[log_filter, current_page], outputs=[status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn])
     demo.load(load_niches_for_ui, inputs=[], outputs=[niche_list_ui])
 
 if __name__ == "__main__":
