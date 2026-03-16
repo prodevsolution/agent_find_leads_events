@@ -17,3 +17,4 @@ agent.log
 leads.db
 active_niches.json
 startup.log
+*.log
