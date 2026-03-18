@@ -76,7 +76,7 @@ jobs:
             OLLAMA_TIMEOUT=${{ secrets.OLLAMA_TIMEOUT || '60' }}
             OLLAMA_NUM_PREDICT=${{ secrets.OLLAMA_NUM_PREDICT || '512' }}
             SCRAPER_CONTENT_LIMIT=${{ secrets.SCRAPER_CONTENT_LIMIT || '2000' }}
-            EXCLUDE_DOMAINS=${{ secrets.EXCLUDE_DOMAINS || 'ticketmaster.com,seatgeek.com,vividseats.com,stubhub.com,eventbrite.com,facebook.com,10times.com,carnivalwarehouse.com,castatefair.com,sanjosetheaters.org,feverup.com' }}
+            EXCLUDE_DOMAINS=${{ secrets.EXCLUDE_DOMAINS || 'ticketmaster.com,seatgeek.com,vividseats.com,stubhub.com,eventbrite.com,10times.com,carnivalwarehouse.com,castatefair.com,sanjosetheaters.org,feverup.com' }}
             ENABLE_MAILCHIMP_SYNC=${{ secrets.ENABLE_MAILCHIMP_SYNC }}
             MAILCHIMP_API_KEY=${{ secrets.MAILCHIMP_API_KEY }}
             MAILCHIMP_SERVER_PREFIX=${{ secrets.MAILCHIMP_SERVER_PREFIX }}
@@ -103,6 +103,9 @@ jobs:
             
             echo "📦 Syncing dependencies..."
             uv sync
+            
+            echo "🎭 Installing Playwright browsers..."
+            uv run playwright install --with-deps chromium
             
             # Parar la aplicación que pudiese estar corriendo en el puerto 7860
             echo "🛑 Stopping existing application on port 7860..."

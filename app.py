@@ -26,7 +26,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global state for UI
+# Global state for UI (using generic locks or just being careful with assignments)
+status_lock = threading.Lock()
 AGENT_STATUS = "Idle"
 LAST_RUN = "Never"
 NEXT_RUN = "Pending..."
@@ -106,54 +107,60 @@ def get_default_dates():
     start_date = datetime.now() + timedelta(days=2)
     return format_date(start_date), "9999-12-31"
 
-def run_agent_workflow(override_start=None, override_end=None):
+def run_agent_workflow(override_start=None, override_end=None, override_criteria=None, max_results=15):
     """
     Executes the LangGraph multi-agent workflow.
     Can be parameterized with override dates from the UI.
     """
     global AGENT_STATUS, LAST_RUN
-    if AGENT_STATUS == "Running":
-        logger.warning("Workflow is already running. Skipping this execution.")
-        return
+    with status_lock:
+        if AGENT_STATUS == "Running":
+            logger.warning("Workflow is already running. Skipping this execution.")
+            return
+        AGENT_STATUS = "Running"
         
-    AGENT_STATUS = "Running"
     logger.info("Starting Multi-Agent Workflow")
     
-    current_date = format_date(datetime.now())
-    start_date, end_date = get_default_dates()
-    
-    # Apply manual overrides if provided and valid
-    if override_start:
-        start_date = override_start
-    if override_end:
-        end_date = override_end
-    else:
-        end_date = "9999-12-31" # Default if not provided
-        
-    # Construct base queries
-    queries = [f"{niche} events" for niche in active_niches]
-
-    initial_state = {
-        "search_queries": queries,
-        "start_date": start_date,
-        "end_date": end_date,
-        "current_date": current_date,
-        "urls_to_scrape": [],
-        "scraped_leads": [],
-        "saved_leads": [],
-        "marketed_leads": [],
-        "notifications_sent": False
-    }
-
     try:
+        current_date = format_date(datetime.now())
+        start_date, end_date = get_default_dates()
+        
+        # Apply manual overrides if provided and valid
+        if override_start:
+            start_date = override_start
+        if override_end:
+            end_date = override_end
+        else:
+            end_date = "9999-12-31" 
+            
+        queries = [niche for niche in active_niches]
+
+        initial_state = {
+            "search_queries": queries,
+            "search_criteria": override_criteria or "",
+            "brainstormed_entities": [],
+            "summarizer_leads": [],
+            "scraper_leads": [],
+            "start_date": start_date,
+            "end_date": end_date,
+            "current_date": current_date,
+            "urls_to_scrape": [],
+            "scraped_leads": [],
+            "saved_leads": [],
+            "marketed_leads": [],
+            "notifications_sent": False,
+            "max_results": max_results
+        }
+
         # Invoke LangGraph
         result = app_graph.invoke(initial_state)
         logger.info(f"Workflow completed successfully. Pushed {len(result.get('marketed_leads', []))} leads.")
     except Exception as e:
         logger.error(f"Error during workflow execution: {e}")
     finally:
-        AGENT_STATUS = "Idle"
-        LAST_RUN = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with status_lock:
+            AGENT_STATUS = "Idle"
+            LAST_RUN = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # --- Scheduler Setup ---
 scheduler = BackgroundScheduler()
@@ -178,7 +185,7 @@ def get_recent_logs(level_filter="ALL"):
         return "No logs yet."
     
     try:
-        with open(log_file, "r") as f:
+        with open(log_file, "r", encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
             
         recent_lines = lines[-50:]
@@ -206,7 +213,7 @@ def refresh_dashboard(log_level="ALL", page=1):
     
     # Formatting for Grid
     recent_leads_data = [
-        [lead.name or "N/A", lead.email, lead.event_name or "N/A", lead.event_url or "N/A", lead.status] 
+        [lead.name or "N/A", lead.email or "N/A", lead.phone or "N/A", lead.event_name or "N/A", lead.event_url or "N/A", lead.status] 
         for lead in leads_to_show
     ]
     
@@ -236,7 +243,7 @@ def refresh_dashboard(log_level="ALL", page=1):
 
     return status_markdown, stats_markdown, recent_leads_data, logs, f"Page {page} of {total_pages}", page, gr.update(value=btn_label, interactive=btn_interactive)
 
-def manual_trigger(start_date_ui, end_date_ui):
+def manual_trigger(start_date_ui, end_date_ui, search_criteria_ui, max_results_ui):
     if AGENT_STATUS == "Running":
         return "Agents are already running. Please wait..."
     
@@ -257,8 +264,9 @@ def manual_trigger(start_date_ui, end_date_ui):
 
         s_date = to_str(start_date_ui)
         e_date = to_str(end_date_ui) or "9999-12-31"
+        s_criteria = search_criteria_ui or ""
 
-        logger.info(f"UI Trigger Validation: Start={s_date}, End={e_date}, Now={now_str}")
+        logger.info(f"UI Trigger Validation: Start={s_date}, End={e_date}, Criteria='{s_criteria}', Now={now_str}")
 
         if not s_date:
             return "[ERROR] Start date is required."
@@ -270,23 +278,29 @@ def manual_trigger(start_date_ui, end_date_ui):
         
         start_date_to_run = s_date
         end_date_to_run = e_date
+        criteria_to_run = s_criteria
+        m_results = int(max_results_ui) if max_results_ui and int(max_results_ui) >= 5 else 15
     except Exception as e:
-        logger.error(f"Date validation error: {e}", exc_info=True)
-        return f"[ERROR] Date validation failed: {e}"
+        logger.error(f"Validation error: {e}", exc_info=True)
+        return f"[ERROR] Validation failed: {e}"
 
     # Run in a separate thread so Gradio doesn't block
-    thread = threading.Thread(target=run_agent_workflow, args=(start_date_to_run, end_date_to_run))
+    thread = threading.Thread(target=run_agent_workflow, args=(start_date_to_run, end_date_to_run, criteria_to_run, m_results))
     thread.start()
     
     return "[SUCCESS] Workflow triggered! The UI will auto-refresh while agents are running."
 
 def clear_db_action(log_level="ALL", page=1):
-    if AGENT_STATUS == "Running":
-        return "Cannot clear database while agents are running.", refresh_dashboard(log_level, page)
+    global AGENT_STATUS
+    with status_lock:
+        if AGENT_STATUS == "Running":
+            return "Cannot clear database while agents are running.", *refresh_dashboard(log_level, page)
+    
     success = repository.clear_database()
     if success:
-        return "Database cleared successfully.", refresh_dashboard(log_level, 1)
-    return "Failed to clear database. Check logs.", refresh_dashboard(log_level, page)
+        # Explicitly force a dashboard refresh with empty data
+        return "Database cleared successfully.", *refresh_dashboard(log_level, 1)
+    return "Failed to clear database. Check logs.", *refresh_dashboard(log_level, page)
 
 def clear_logs_action(log_level="ALL", page=1):
     """Truncates the log file and refreshes UI."""
@@ -302,6 +316,16 @@ def stop_server_action():
     os._exit(0)
 
 
+
+custom_css = """
+.selectable-table td {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    cursor: text;
+}
+"""
 
 with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     gr.Markdown("# 🚀 Event Prospecting Multi-Agent System")
@@ -327,6 +351,22 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
                 include_time=False
             )
             gr.Markdown("> [!NOTE]\n> End date is optional. If left empty, search will encompass all future events.")
+            search_criteria_input = gr.Textbox(
+                label="Search Criteria", 
+                placeholder="e.g. + venues in Florida",
+                value=""
+            )
+            gr.Markdown("> [!TIP]\n> Use criteria like `+ venues in Florida` or `with contact emails` to narrow down results.")
+            
+            max_results_input = gr.Number(
+                label="Max Search Results", 
+                value=15, 
+                minimum=5, 
+                maximum=100,
+                step=1,
+                info="Suggested: 15, 40, 65, 90. Minimum: 5."
+            )
+
             trigger_btn = gr.Button("Run Agents Now", variant="primary")
             
             with gr.Row():
@@ -385,15 +425,16 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
             )
             
             # End of Column 1
-
-            
+        
         with gr.Column():
+            # All Leads and Logs in second column
             gr.Markdown("### 👥 All Leads (Paginated)")
             leads_table = gr.Dataframe(
-                headers=["Name", "Email", "Event", "Address", "Status"],
-                datatype=["str", "str", "str", "str", "str"],
-                column_count=(5, "fixed"),
-                interactive=False
+                headers=["Name", "Email", "Phone", "Event", "Address", "Status"],
+                datatype=["str", "str", "str", "str", "str", "str"],
+                column_count=(6, "fixed"),
+                interactive=False,
+                elem_classes="selectable-table"
             )
             with gr.Row():
                 prev_page_btn = gr.Button("◀ Previous")
@@ -401,14 +442,16 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
                 next_page_btn = gr.Button("Next ▶")
             refresh_btn = gr.Button("Refresh Dashboard")
 
-        with gr.Column():
+            # Logs moved below table
             gr.Markdown("### 📜 Activity Logs")
-            log_filter = gr.Dropdown(
-                label="Log Level Filter",
-                choices=["ALL", "INFO", "WARNING", "ERROR"],
-                value="ALL"
-            )
-            clear_logs_btn = gr.Button("🗑️ Clear Log File", variant="secondary")
+            with gr.Row():
+                log_filter = gr.Dropdown(
+                    label="Log Level Filter",
+                    choices=["ALL", "INFO", "WARNING", "ERROR"],
+                    value="ALL"
+                )
+                clear_logs_btn = gr.Button("🗑️ Clear Log File", variant="secondary")
+            
             log_display = gr.Code(
                 label="Recent Activity",
                 language="python",
@@ -459,8 +502,12 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     
     # Wrapper for clear DB
     def clear_db_wrapper(level, page):
-        msg, (s1, s2, table, logs, p_info, p_num, b_upd) = clear_db_action(level, page)
-        return msg, s1, s2, table, logs, p_info, p_num, b_upd
+        res = clear_db_action(level, page)
+        # Ensure we always return 8 values for the Gradio outputs
+        if isinstance(res, tuple) and len(res) == 2:
+            msg, dashboard_data = res
+            return msg, *dashboard_data
+        return res # Fallback
         
     clear_db_btn.click(
         fn=clear_db_wrapper,
@@ -469,8 +516,11 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     )
 
     def clear_logs_wrapper(level, page):
-        msg, (s1, s2, table, logs, p_info, p_num, b_upd) = clear_logs_action(level, page)
-        return msg, s1, s2, table, logs, p_info, p_num, b_upd
+        res = clear_logs_action(level, page)
+        if isinstance(res, tuple) and len(res) == 2:
+            msg, dashboard_data = res
+            return msg, *dashboard_data
+        return res
 
     clear_logs_btn.click(
         fn=clear_logs_wrapper,
@@ -485,14 +535,14 @@ with gr.Blocks(title="Event Prospecting Multi-Agent Monitor") as demo:
     )
     
     # Wrapper for trigger: starts the workflow, activates the live timer
-    def trigger_wrapper(start_date, end_date, level, page):
-        msg = manual_trigger(start_date, end_date)
+    def trigger_wrapper(start_date, end_date, criteria, max_res, level, page):
+        msg = manual_trigger(start_date, end_date, criteria, max_res)
         s, st, tbl, logs, p_info, p_num, btn_upd = refresh_dashboard(level, page)
         return msg, s, st, tbl, logs, p_info, p_num, btn_upd, gr.Timer(active=True)
         
     trigger_btn.click(
         fn=trigger_wrapper,
-        inputs=[start_date_input, end_date_input, log_filter, current_page],
+        inputs=[start_date_input, end_date_input, search_criteria_input, max_results_input, log_filter, current_page],
         outputs=[trigger_output, status_panel, stats_panel, leads_table, log_display, page_info, current_page, trigger_btn, live_timer]
     )
 
@@ -512,4 +562,9 @@ if __name__ == "__main__":
     start_scheduler()
     
     # Launch Gradio server
-    demo.launch(server_name="0.0.0.0", server_port=7860, share=False)
+    demo.launch(
+        server_name="0.0.0.0", 
+        server_port=7860, 
+        share=False,
+        css=custom_css
+    )

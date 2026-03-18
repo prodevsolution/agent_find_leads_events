@@ -48,3 +48,6 @@ TO_EMAIL = os.getenv("TO_EMAIL")
 
 # DATABASE
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///leads.db")
+
+# SEARCH QUANTITY
+SUMMARIZER_RESULT_LIMIT = int(os.getenv("SUMMARIZER_RESULT_LIMIT", "50"))

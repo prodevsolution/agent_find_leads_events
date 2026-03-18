@@ -1,5 +1,7 @@
 import os
 import re
+import time
+from playwright.sync_api import sync_playwright
 import smtplib
 from email.message import EmailMessage
 import requests
@@ -24,10 +26,11 @@ logger = logging.getLogger(__name__)
 
 # --- Search Tool (Time-Aware) ---
 @tool
-def search_events(query: str, start_date: str = None, end_date: str = None) -> list[dict]:
+def search_events(query: str, start_date: str = None, end_date: str = None, max_results: int = 30) -> list[dict]:
     """
     Searches for events based on a query. Incorporates time-awareness.
     start_date and end_date should be in ISO 8601 format if provided.
+    max_results limits the number of results returned by the search engine.
     Returns a list of dictionaries with 'url', 'title', 'content'.
     """
     if not TAVILY_API_KEY:
@@ -42,7 +45,7 @@ def search_events(query: str, start_date: str = None, end_date: str = None) -> l
         time_context += f" until {end_date}"
         
     full_query = f"{query}{time_context}"
-    logger.info(f"Executing search: {full_query}")
+    logger.info(f"Executing search: {full_query} (max_results={max_results})")
 
     # Use Tavily API REST endpoint directly for simplicity and control
     url = "https://api.tavily.com/search"
@@ -57,7 +60,7 @@ def search_events(query: str, start_date: str = None, end_date: str = None) -> l
         "include_answer": False,
         "include_images": False,
         "include_raw_content": False,
-        "max_results": 10,
+        "max_results": max_results,
         "exclude_domains": excluded_domains
     }
     
@@ -244,3 +247,54 @@ def send_email_notification(subject: str, message_body: str) -> bool:
     except Exception as e:
         logger.error(f"Failed to send Email notification: {e}")
         return False
+
+
+# --- Dynamic Scraper Tool (MCP-Ready Architecture) ---
+@tool
+def scrape_dynamic_mcp(url: str) -> dict:
+    """
+    Scrapes a dynamic URL using Playwright (Real Dynamic Engine).
+    Handles JavaScript rendering and basic anti-bot measures.
+    """
+    logger.info(f"Scraping DYNAMIC URL with Playwright: {url}")
+    
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            # Custom user agent to look real
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            )
+            page = context.new_page()
+            
+            # Navigate and wait for content
+            page.goto(url, wait_until="networkidle", timeout=60000)
+            
+            # Wait a bit more for LinkedIn/Social async loads
+            time.sleep(5) 
+            
+            # Get content and title
+            content_html = page.content()
+            title = page.title()
+            
+            soup = BeautifulSoup(content_html, 'html.parser')
+            for script in soup(["script", "style"]):
+                script.extract()
+            
+            text = soup.get_text(separator=' ', strip=True)
+            emails = extract_emails(text)
+            phones = extract_phones(text)
+            
+            browser.close()
+            
+            return {
+                "url": url,
+                "content": text[:config.SCRAPER_CONTENT_LIMIT * 2],
+                "emails": emails,
+                "phones": phones,
+                "title": title or "Dynamic Page Content"
+            }
+    except Exception as e:
+        logger.error(f"Playwright failed for {url}: {e}")
+        return {"url": url, "content": "", "emails": [], "phones": [], "title": ""}
+
