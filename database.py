@@ -18,7 +18,7 @@ class Lead(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=True)
-    email = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True) # Changed from nullable=False to support phone-only leads
     phone = Column(String(50), nullable=True)
     event_name = Column(String(255), nullable=True)
     event_url = Column(Text, nullable=True)
@@ -34,6 +34,10 @@ class Lead(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
+        # Unique constraint adjusted: if email is None, we still want to avoid duplicates for the same event and phone?
+        # For simplicity, we keep email+event_name but allow email to be NULL. 
+        # In SQLite, NULL values in UniqueConstraint are treated as distinct, so we might get duplicates if many leads have no email for the same event.
+        # However, repository.add_lead handles the check manually.
         UniqueConstraint('email', 'event_name', name='uix_email_event_name'),
     )
 
@@ -56,10 +60,21 @@ class LeadRepository:
         """
         session = self.SessionLocal()
         try:
-            # Check if lead already exists to avoid throwing IntegrityError repeatedly
-            existing_lead = session.query(Lead).filter_by(email=lead_data.get('email'), event_name=lead_data.get('event_name')).first()
+            # Enhanced existence check: handle cases where email might be None
+            email = lead_data.get('email')
+            phone = lead_data.get('phone')
+            event_name = lead_data.get('event_name')
+
+            query = session.query(Lead).filter(Lead.event_name == event_name)
+            if email:
+                existing_lead = query.filter(Lead.email == email).first()
+            elif phone:
+                existing_lead = query.filter(Lead.phone == phone).first()
+            else:
+                existing_lead = None
+
             if existing_lead:
-                logger.debug(f"Lead with email {lead_data.get('email')} for event {lead_data.get('event_name')} already exists. Skipping.")
+                logger.debug(f"Lead already exists (email={email}, phone={phone}) for event {event_name}. Skipping.")
                 return existing_lead, False
             
             new_lead = Lead(**lead_data)
@@ -70,8 +85,8 @@ class LeadRepository:
             return new_lead, True
         except IntegrityError:
             session.rollback()
-            logger.warning(f"Integrity error (duplicate email & event): {lead_data.get('email')} @ {lead_data.get('event_name')}")
-            # Try to fetch it again if it was a race condition
+            # Silently handle - we already checked but potentially a race condition or UniqueConstraint catch.
+            # No need to log as warning if it was filtered out.
             existing = session.query(Lead).filter_by(email=lead_data.get('email'), event_name=lead_data.get('event_name')).first()
             return existing, False
         except Exception as e:

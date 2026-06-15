@@ -37,15 +37,26 @@ def search_events(query: str, start_date: str = None, end_date: str = None, max_
         logger.error("TAVILY_API_KEY not found.")
         return []
     
+    # Clean query of redundant date information to avoid confusing the search engine
+    clean_query = query
+    date_patterns = [
+        r"starting from \d{4}-\d{2}-\d{2}",
+        r"until \d{4}-\d{2}-\d{2}",
+        r"since \d{4}-\d{2}-\d{2}",
+        r"after \d{4}-\d{2}-\d{2}"
+    ]
+    for pattern in date_patterns:
+        clean_query = re.sub(pattern, "", clean_query, flags=re.IGNORECASE).strip()
+
     # Enhance query with date context if helpful for the search engine
     time_context = ""
     if start_date:
         time_context += f" starting from {start_date}"
     if end_date and end_date not in ("None", "9999-12-31"):
         time_context += f" until {end_date}"
-        
-    full_query = f"{query}{time_context}"
-    logger.info(f"Executing search: {full_query} (max_results={max_results})")
+
+    full_query = f"{clean_query}{time_context}"
+    logger.info(f"Executing search: {full_query} (max_results={max_results}, depth=advanced)")
 
     # Use Tavily API REST endpoint directly for simplicity and control
     url = "https://api.tavily.com/search"
@@ -56,10 +67,10 @@ def search_events(query: str, start_date: str = None, end_date: str = None, max_
     payload = {
         "api_key": TAVILY_API_KEY,
         "query": full_query,
-        "search_depth": "basic",
+        "search_depth": "advanced", # Improved from "basic"
         "include_answer": False,
         "include_images": False,
-        "include_raw_content": False,
+        "include_raw_content": True,  # Get full page text, not just snippets
         "max_results": max_results,
         "exclude_domains": excluded_domains
     }
@@ -68,7 +79,12 @@ def search_events(query: str, start_date: str = None, end_date: str = None, max_
         response = requests.post(url, json=payload)
         response.raise_for_status()
         data = response.json()
-        return [{"url": res["url"], "title": res["title"], "content": res["content"]} for res in data.get("results", [])]
+        results = []
+        for res in data.get("results", []):
+            # Prefer raw_content (full page) over content (snippet) if available
+            body = res.get("raw_content") or res.get("content", "")
+            results.append({"url": res["url"], "title": res["title"], "content": body})
+        return results
     except Exception as e:
         logger.error(f"Error during Tavily search: {e}")
         return []
@@ -144,6 +160,12 @@ def scrape_event_page(url: str) -> dict:
         }
     except Exception as e:
         logger.error(f"Failed to scrape {url}: {e}")
+        # FALLBACK: If standard scrape failed (403 or Timeout), try dynamic scraper
+        is_blocked = "403" in str(e) or "Timeout" in str(e)
+        if is_blocked:
+            logger.info(f"Retrying with DYNAMIC scraper due to block/timeout: {url}")
+            return scrape_dynamic_mcp.func(url) # Access underlying func if it's a @tool
+            
         return {"url": url, "content": "", "emails": [], "phones": [], "title": ""}
 
 

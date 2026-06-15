@@ -28,11 +28,8 @@ class LeadData(BaseModel):
     event_end_date: str | None = Field(default=None, description="End date of the event in ISO 8601 format.")
     is_valid_date: bool = Field(default=True, description="False if event_start_date is securely known to be in the past relative to current_date.")
 
-    @pydantic.model_validator(mode='after')
-    def check_contact_info(self) -> 'LeadData':
-        if not self.email and not self.phone:
-            raise ValueError("Lead must have at least an email or a phone number.")
-        return self
+    # Removed strict validator to allow LLM to return partial leads without crashing the extraction batch.
+    # Filtering is now handled at the node level.
 
 class SearchResultUrls(BaseModel):
     urls: List[str] = Field(description="List of URLs found for potential events.")
@@ -63,48 +60,53 @@ class GraphState(TypedDict):
     marketed_leads: Annotated[list[str], operator.add]
     notifications_sent: bool
     max_results: int
-
+    # Accumulated raw content from all searches for deep synthesis
+    all_search_content: Annotated[list[str], operator.add]
+    agentic_leads: Annotated[list[LeadData], operator.add]
 
 
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# --- LLM ---
-def get_llm():
+# --- LLM Factory ---
+def get_llm(model_override: str = None):
+    """Returns an LLM. model_override takes priority over config settings."""
     provider = config.LLM_PROVIDER
+    if model_override and provider == "openai":
+        logger.info(f"Using OpenAI LLM ({model_override})")
+        return ChatOpenAI(model=model_override, temperature=0)
     if provider == "ollama":
         logger.info(f"Using Ollama LLM with model: {config.OLLAMA_MODEL}")
         return ChatOllama(
             model=config.OLLAMA_MODEL,
             base_url=config.OLLAMA_BASE_URL,
             temperature=0,
-            num_predict=config.OLLAMA_NUM_PREDICT,  # cap output tokens → faster
-            timeout=config.OLLAMA_TIMEOUT,           # avoid hanging forever
+            num_predict=config.OLLAMA_NUM_PREDICT,
+            timeout=config.OLLAMA_TIMEOUT,
         )
     elif provider == "openai":
-        logger.info("Using OpenAI LLM (gpt-4o-mini)")
+        logger.info("Using OpenAI LLM (gpt-4o-mini) [fast/cheap]")
         return ChatOpenAI(model="gpt-4o-mini", temperature=0)
     else:
         logger.info("Using Google Gemini LLM (gemini-2.0-flash)")
         return ChatGoogleGenerativeAI(model="gemini-2.0-flash")
 
-# Cache LLM singleton so it is not re-instantiated on every scheduler run
-_llm_instance = None
-_llm_structured = None
+# Singleton caches per model role
+_extractor_structured = None  # For summarizer + scraper (uses EXTRACTOR_MODEL)
 
 def get_structured_llm():
-    """Returns a cached, structured-output LLM instance."""
-    global _llm_instance, _llm_structured
-    if _llm_structured is None:
-        _llm_instance = get_llm()
-        _llm_structured = _llm_instance.with_structured_output(ExtractedLeads)
-        logger.info("LLM instance created and cached.")
-    return _llm_structured
+    """Returns a cached structured-output LLM using EXTRACTOR_MODEL (gpt-4o by default)."""
+    global _extractor_structured
+    if _extractor_structured is None:
+        llm = get_llm(model_override=config.EXTRACTOR_MODEL)
+        _extractor_structured = llm.with_structured_output(ExtractedLeads)
+        logger.info(f"Extractor LLM created: {config.EXTRACTOR_MODEL}")
+    return _extractor_structured
 
 def get_brainstorm_llm():
-    """Returns a cached, structured-output LLM instance for brainstorming."""
-    return get_llm().with_structured_output(EntityList)
+    """Returns a structured-output LLM for brainstorming (fast, cheap gpt-4o-mini)."""
+    return get_llm(model_override="gpt-4o-mini").with_structured_output(EntityList)
 
 
 # --- Nodes ---
@@ -156,22 +158,28 @@ def summarizer_node(state: GraphState):
             })
             
             # Combine snippets into a context for the LLM
-            context = "\n\n".join([f"Source: {res['url']}\nContent: {res['content']}" for res in results[:10]])
+            # Increased from 10 to 20 to provide more density
+            context = "\n\n".join([f"Source: {res['url']}\nContent: {res['content']}" for res in results[:20]]) 
             
             prompt = (
-                f"You are a lead extraction agent. Based on the following search results about '{niche}', "
-                f"extract a list of as many contacts as possible (emails, names, events). "
+                f"You are a professional lead extraction agent. Based on the following search results about '{niche}', "
+                f"extract a list of as many unique contacts as possible (emails, names, events, phone numbers). "
+                f"Even if the contact information is partial, extract what you can find. "
                 f"The current date is {state['current_date']}. "
-                f"Identify events in 2026 or later as per the criteria: {criteria}. "
+                f"Identify upcoming events in 2026 or later as per the criteria: {criteria}. "
+                f"IMPORTANT: Do not skip any lead that has an email or phone number in the provided context."
                 f"\n\nContext:\n{context}"
             )
             
             extraction = llm.invoke(prompt)
+            logger.info(f"Summarizer LLM returned {len(extraction.leads)} raw leads for niche: {niche}")
             for lead in extraction.leads:
-                lead.event_url = f"Found via Search: {niche}" # Attribution
-                all_leads.append(lead)
+                # Filter: Only keep leads with at least one contact method
+                if lead.email or lead.phone:
+                    lead.event_url = f"Found via Search: {niche}" # Attribution
+                    all_leads.append(lead)
                 
-            logger.info(f"Summarizer found {len(extraction.leads)} potential leads for niche: {niche}")
+            logger.info(f"Summarizer found {len(all_leads)} leads with contact info for niche: {niche}")
         except Exception as e:
             logger.error(f"Summarizer failed for niche '{niche}': {e}")
             
@@ -242,15 +250,86 @@ def scraper_node(state: GraphState):
             )
             
             extraction = llm.invoke(prompt)
+            logger.info(f"Scraper LLM returned {len(extraction.leads)} raw leads for {url}")
             for lead in extraction.leads:
-                if lead.is_valid_date and lead.email:
+                # Filter: Valid date AND at least one contact method (email or phone)
+                if lead.is_valid_date and (lead.email or lead.phone):
                     lead.event_url = url
                     valid_leads.append(lead)
                     
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
 
+    logger.info(f"Scraper node finished. Total valid leads found: {len(valid_leads)}")
     return {"scraper_leads": valid_leads}
+
+def agentic_researcher_node(state: GraphState):
+    """
+    ChatGPT-style 'Deep Research' node.
+    Collects ALL content gathered by the summarizer searches and the scraper pages,
+    then performs ONE holistic synthesis pass using the best available model.
+    This mirrors how o3/GPT-5 aggregates across sources before extracting.
+    """
+    logger.info("--- AGENTIC RESEARCHER NODE (Deep Synthesis) ---")
+    llm = get_structured_llm()
+    criteria = state.get("search_criteria", "")
+    current_date = state.get("current_date", "")
+    start_date = state.get("start_date", "")
+    niches = ", ".join(state.get("search_queries", []))
+    
+    # Collect all content already gathered in this run:
+    # 1. Content from URLs already scraped (available in urls_to_scrape)
+    # 2. Additional targeted searches for each niche
+    all_content_pieces = []
+    
+    # Run fresh targeted searches to gather raw data for synthesis
+    for niche in state.get("search_queries", []):
+        try:
+            query = f"{niche} contact email phone {criteria}"
+            results = search_events.invoke({
+                "query": query,
+                "start_date": start_date,
+                "max_results": min(state.get("max_results", 15), 20)
+            })
+            for res in results[:5]:  # Use top 5 deep results per niche
+                if res.get("content"):
+                    all_content_pieces.append(
+                        f"[SOURCE: {res['url']}]\n{res['content'][:config.SCRAPER_CONTENT_LIMIT]}"
+                    )
+        except Exception as e:
+            logger.error(f"Agentic search failed for '{niche}': {e}")
+
+    if not all_content_pieces:
+        logger.info("Agentic researcher: no content to synthesize.")
+        return {"agentic_leads": []}
+
+    full_context = "\n\n---\n\n".join(all_content_pieces)
+    
+    prompt = (
+        f"You are an expert lead extraction agent with deep research capabilities.\n"
+        f"Your task: extract EVERY contact (name, email, phone) for UPCOMING EVENTS from the sources below.\n"
+        f"Niches: {niches}\n"
+        f"Criteria: {criteria}\n"
+        f"Current date: {current_date} | Events must start after: {start_date}\n"
+        f"RULES:\n"
+        f"- Only include events with start_date >= {start_date}. Set is_valid_date=False for past events.\n"
+        f"- Include ALL contacts even if information is partial.\n"
+        f"- Do NOT invent data. Only extract what is explicitly stated in the sources.\n"
+        f"- Extract every email and phone number you find.\n\n"
+        f"SOURCES:\n{full_context}"
+    )
+    
+    try:
+        extraction = llm.invoke(prompt)
+        valid = [
+            lead for lead in extraction.leads
+            if lead.is_valid_date and (lead.email or lead.phone)
+        ]
+        logger.info(f"Agentic researcher found {len(valid)} valid leads from holistic synthesis.")
+        return {"agentic_leads": valid}
+    except Exception as e:
+        logger.error(f"Agentic researcher synthesis failed: {e}")
+        return {"agentic_leads": []}
 
 def deduplicator_node(state: GraphState):
     """
@@ -260,8 +339,10 @@ def deduplicator_node(state: GraphState):
     logger.info("--- DEDUPLICATOR NODE ---")
     sum_leads = state.get("summarizer_leads", [])
     scr_leads = state.get("scraper_leads", [])
+    agt_leads = state.get("agentic_leads", [])
     
-    all_leads = sum_leads + scr_leads
+    all_leads = sum_leads + scr_leads + agt_leads
+    logger.info(f"Deduplicator: Summarizer={len(sum_leads)}, Scraper={len(scr_leads)}, Agentic={len(agt_leads)}, Total={len(all_leads)}")
     unique_emails = {}
     marketed_emails = []
     saved_info = []
@@ -270,21 +351,32 @@ def deduplicator_node(state: GraphState):
     
     # Process all found leads
     for lead in all_leads:
-        email = lead.email.lower()
-        if email not in unique_emails:
-            unique_emails[email] = lead
-        else:
-            coincidences += 1
-            # Prefer deep scraper data over summarizer if available
-            if lead in scr_leads:
+        # Use email if available, otherwise just use None (but handle cautiously)
+        email = lead.email.lower() if lead.email else None
+        
+        # If we have an email, use it for deduplication
+        if email:
+            if email not in unique_emails:
                 unique_emails[email] = lead
+            else:
+                coincidences += 1
+                # Prefer deep scraper data over summarizer if available
+                if lead in scr_leads:
+                    unique_emails[email] = lead
+        elif lead.phone:
+            # If no email but has phone, use phone as a temporary unique identifier for this batch
+            phone_key = f"phone_{lead.phone}"
+            if phone_key not in unique_emails:
+                unique_emails[phone_key] = lead
+            else:
+                coincidences += 1
 
     logger.info(f"Deduplication: Total={len(all_leads)}, Unique={len(unique_emails)}, Coincidences={coincidences}")
 
-    for email, lead in unique_emails.items():
+    for item_key, lead in unique_emails.items():
         lead_dict = {
             "name": lead.name,
-            "email": email,
+            "email": lead.email, # Use lead.email instead of the loop key (item_key)
             "phone": lead.phone,
             "event_name": lead.event_name,
             "event_url": lead.event_url,
@@ -300,9 +392,11 @@ def deduplicator_node(state: GraphState):
 
         db_lead, is_new = repository.add_lead(lead_dict)
         if db_lead:
-            saved_info.append({"email": db_lead.email, "name": db_lead.name})
+            saved_info.append({"email": db_lead.email or "Phone Lead", "name": db_lead.name})
+            logger.info(f"Deduplicator: Lead processed: {db_lead.email or db_lead.phone} (is_new={is_new})")
             
-            if is_new and config.ENABLE_MAILCHIMP_SYNC:
+            # Mailchimp sync REQUIRES an email. Skip if None.
+            if is_new and config.ENABLE_MAILCHIMP_SYNC and db_lead.email:
                 name_parts = (lead.name or "").split(" ")
                 first_name = name_parts[0] if name_parts else ""
                 last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
@@ -337,21 +431,24 @@ def build_graph() -> StateGraph:
     workflow.add_node("summarizer", summarizer_node)
     workflow.add_node("searcher", searcher_node)
     workflow.add_node("scraper", scraper_node)
+    workflow.add_node("agentic_researcher", agentic_researcher_node)  # NEW: ChatGPT-style deep synthesis
     workflow.add_node("deduplicator", deduplicator_node)
     workflow.add_node("notifier", notifier_node)
     
     workflow.set_entry_point("brainstormer")
     
-    # Brainstormer starts both paths
-    workflow.add_edge("brainstormer", "summarizer")
-    workflow.add_edge("brainstormer", "searcher")
+    # Brainstormer starts three parallel paths
+    workflow.add_edge("brainstormer", "summarizer")          # Path 1: Fast summarizer (snippets)
+    workflow.add_edge("brainstormer", "searcher")             # Path 2: Deep search -> scrape
+    workflow.add_edge("brainstormer", "agentic_researcher")  # Path 3: Holistic synthesis (ChatGPT-style)
     
-    # Path 1: Search -> Scrape
+    # Path 2: Search -> Scrape
     workflow.add_edge("searcher", "scraper")
     
-    # Both paths converge at deduplicator
+    # All three paths converge at deduplicator
     workflow.add_edge("summarizer", "deduplicator")
     workflow.add_edge("scraper", "deduplicator")
+    workflow.add_edge("agentic_researcher", "deduplicator")
     
     workflow.add_edge("deduplicator", "notifier")
     workflow.add_edge("notifier", END)

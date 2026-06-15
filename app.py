@@ -141,6 +141,8 @@ def run_agent_workflow(override_start=None, override_end=None, override_criteria
             "brainstormed_entities": [],
             "summarizer_leads": [],
             "scraper_leads": [],
+            "agentic_leads": [],          # NEW: agentic researcher path
+            "all_search_content": [],     # NEW: accumulated search content
             "start_date": start_date,
             "end_date": end_date,
             "current_date": current_date,
@@ -318,12 +320,22 @@ def stop_server_action():
 
 
 custom_css = """
-.selectable-table td {
+.selectable-table {
     user-select: text !important;
     -webkit-user-select: text !important;
     -moz-user-select: text !important;
     -ms-user-select: text !important;
-    cursor: text;
+}
+
+.selectable-table * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+.selectable-table td, .selectable-table th {
+    cursor: text !important;
 }
 """
 

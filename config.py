@@ -24,7 +24,15 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL") or "phi4-mini"
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "60"))       # seconds per request
 OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "512"))  # max output tokens
-SCRAPER_CONTENT_LIMIT = int(os.getenv("SCRAPER_CONTENT_LIMIT", "2000"))  # chars sent to LLM
+
+# Model for extraction nodes (summarizer, scraper, deep researcher).
+# Use 'gpt-4o' for much better extraction quality (similar to ChatGPT).
+# Use 'o3-mini' for maximum reasoning quality (most expensive, slowest).
+# Use 'gpt-4o-mini' for fastest / cheapest (default).
+EXTRACTOR_MODEL = os.getenv("EXTRACTOR_MODEL", "gpt-4o")
+
+# Content limit for scraped pages sent to LLM (chars). Higher = more info but higher cost.
+SCRAPER_CONTENT_LIMIT = int(os.getenv("SCRAPER_CONTENT_LIMIT", "6000"))  # Increased from 2000
 
 
 # MAILCHIMP CONFIGURATION
