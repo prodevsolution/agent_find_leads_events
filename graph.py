@@ -40,7 +40,6 @@ class ExtractedLeads(BaseModel):
 class EntityList(BaseModel):
     entities: List[str] = Field(description="List of company names, venues, or organizations found in the LLM's knowledge for a niche.")
 
-# --- State ---
 class GraphState(TypedDict):
     search_queries: list[str]
     search_criteria: str
@@ -48,6 +47,10 @@ class GraphState(TypedDict):
     start_date: str | None
     end_date: str | None
     current_date: str
+    
+    # ProDev Persona classification
+    persona_type: str | None
+    target_product: str | None
     
     # Path results
     summarizer_leads: Annotated[list[LeadData], operator.add]
@@ -63,6 +66,8 @@ class GraphState(TypedDict):
     # Accumulated raw content from all searches for deep synthesis
     all_search_content: Annotated[list[str], operator.add]
     agentic_leads: Annotated[list[LeadData], operator.add]
+    sync_mailchimp: bool | None
+
 
 
 from langchain_openai import ChatOpenAI
@@ -113,6 +118,11 @@ def get_brainstorm_llm():
 def brainstormer_node(state: GraphState):
     """Uses LLM internal knowledge to suggest specific entities for each niche."""
     logger.info("--- BRAINSTORMER NODE ---")
+    persona = state.get("persona_type")
+    if persona:
+        logger.info(f"Brainstormer: ProDev Persona '{persona}' detected. Skipping generic brainstorming.")
+        return {"brainstormed_entities": []}
+
     llm = get_brainstorm_llm()
     all_entities = []
     
@@ -144,12 +154,17 @@ def summarizer_node(state: GraphState):
     llm = get_structured_llm()
     all_leads = []
     criteria = state.get("search_criteria", "")
+    persona = state.get("persona_type")
     
     for niche in state.get("search_queries", []):
         limit = config.SUMMARIZER_RESULT_LIMIT
-        query = f"list of {limit} {niche} events starting from {state['start_date']} {criteria} with contact information"
+        if persona:
+            # Query is already a complete tailored search query
+            query = f"{niche} {criteria}".strip()
+        else:
+            query = f"list of {limit} {niche} events starting from {state['start_date']} {criteria} with contact information"
+            
         try:
-            # We use search_events but specifically looking for many results/snippets
             results = search_events.invoke({
                 "query": query, 
                 "start_date": state.get("start_date"), 
@@ -157,31 +172,40 @@ def summarizer_node(state: GraphState):
                 "max_results": state.get("max_results")
             })
             
-            # Combine snippets into a context for the LLM
-            # Increased from 10 to 20 to provide more density
             context = "\n\n".join([f"Source: {res['url']}\nContent: {res['content']}" for res in results[:20]]) 
             
-            prompt = (
-                f"You are a professional lead extraction agent. Based on the following search results about '{niche}', "
-                f"extract a list of as many unique contacts as possible (emails, names, events, phone numbers). "
-                f"Even if the contact information is partial, extract what you can find. "
-                f"The current date is {state['current_date']}. "
-                f"Identify upcoming events in 2026 or later as per the criteria: {criteria}. "
-                f"IMPORTANT: Do not skip any lead that has an email or phone number in the provided context."
-                f"\n\nContext:\n{context}"
-            )
+            if persona:
+                prompt = (
+                    f"You are a professional lead extraction agent targeting business contacts for the product/persona: '{persona}'.\n"
+                    f"Based on the following search results for the query '{niche}', "
+                    f"extract a list of as many unique contacts as possible (emails, phone numbers, names, websites).\n"
+                    f"Identify relevant business leads or upcoming event contacts as per the criteria: {criteria}.\n"
+                    f"Do not skip any lead that has an email or phone number in the provided context.\n"
+                    f"Current date is {state['current_date']}.\n\n"
+                    f"Context:\n{context}"
+                )
+            else:
+                prompt = (
+                    f"You are a professional lead extraction agent. Based on the following search results about '{niche}', "
+                    f"extract a list of as many unique contacts as possible (emails, names, events, phone numbers). "
+                    f"Even if the contact information is partial, extract what you can find. "
+                    f"The current date is {state['current_date']}. "
+                    f"Identify upcoming events in 2026 or later as per the criteria: {criteria}. "
+                    f"IMPORTANT: Do not skip any lead that has an email or phone number in the provided context."
+                    f"\n\nContext:\n{context}"
+                )
             
             extraction = llm.invoke(prompt)
-            logger.info(f"Summarizer LLM returned {len(extraction.leads)} raw leads for niche: {niche}")
+            logger.info(f"Summarizer LLM returned {len(extraction.leads)} raw leads for: {niche}")
             for lead in extraction.leads:
-                # Filter: Only keep leads with at least one contact method
                 if lead.email or lead.phone:
-                    lead.event_url = f"Found via Search: {niche}" # Attribution
+                    if not lead.event_url:
+                        lead.event_url = f"Found via Search: {niche}"
                     all_leads.append(lead)
                 
-            logger.info(f"Summarizer found {len(all_leads)} leads with contact info for niche: {niche}")
+            logger.info(f"Summarizer found {len(all_leads)} leads with contact info.")
         except Exception as e:
-            logger.error(f"Summarizer failed for niche '{niche}': {e}")
+            logger.error(f"Summarizer failed for '{niche}': {e}")
             
     return {"summarizer_leads": all_leads}
 
@@ -190,33 +214,36 @@ def searcher_node(state: GraphState):
     logger.info("--- SEARCHER NODE ---")
     urls = []
     criteria = state.get("search_criteria", "")
+    persona = state.get("persona_type")
     
-    for niche in state.get("search_queries", []):
-        # Base queries for the niche
-        queries_to_run = [
-            f"{niche} events {criteria}",
-            f"{niche} contact email {criteria}",
-            f"upcoming {niche} venues {criteria}"
-        ]
+    # If we are doing a persona run, the queries are already precise, so we run them directly
+    if persona:
+        queries_to_run = [f"{q} {criteria}".strip() for q in state.get("search_queries", [])]
+    else:
+        queries_to_run = []
+        for niche in state.get("search_queries", []):
+            queries_to_run.extend([
+                f"{niche} events {criteria}",
+                f"{niche} contact email {criteria}",
+                f"upcoming {niche} venues {criteria}"
+            ])
+            entities = state.get("brainstormed_entities", [])
+            for entity in entities[:10]:
+                 queries_to_run.append(f"{entity} official website contact {criteria}")
         
-        # Add entity-specific queries from brainstorming
-        entities = state.get("brainstormed_entities", [])
-        for entity in entities[:10]: # Limit
-             queries_to_run.append(f"{entity} official website contact {criteria}")
-        
-        for query in queries_to_run:
-            try:
-                results = search_events.invoke({
-                    "query": query, 
-                    "start_date": state.get("start_date"), 
-                    "end_date": state.get("end_date"),
-                    "max_results": state.get("max_results")
-                })
-                for res in results:
-                    if res.get("url") and res.get("url") not in urls:
-                        urls.append(res["url"])
-            except Exception as e:
-                logger.error(f"Search failed for query '{query}': {e}")
+    for query in queries_to_run:
+        try:
+            results = search_events.invoke({
+                "query": query, 
+                "start_date": state.get("start_date"), 
+                "end_date": state.get("end_date"),
+                "max_results": state.get("max_results")
+            })
+            for res in results:
+                if res.get("url") and res.get("url") not in urls:
+                    urls.append(res["url"])
+        except Exception as e:
+            logger.error(f"Search failed for query '{query}': {e}")
             
     return {"urls_to_scrape": urls}
 
@@ -268,30 +295,29 @@ def agentic_researcher_node(state: GraphState):
     ChatGPT-style 'Deep Research' node.
     Collects ALL content gathered by the summarizer searches and the scraper pages,
     then performs ONE holistic synthesis pass using the best available model.
-    This mirrors how o3/GPT-5 aggregates across sources before extracting.
     """
     logger.info("--- AGENTIC RESEARCHER NODE (Deep Synthesis) ---")
     llm = get_structured_llm()
     criteria = state.get("search_criteria", "")
     current_date = state.get("current_date", "")
     start_date = state.get("start_date", "")
-    niches = ", ".join(state.get("search_queries", []))
+    persona = state.get("persona_type")
     
-    # Collect all content already gathered in this run:
-    # 1. Content from URLs already scraped (available in urls_to_scrape)
-    # 2. Additional targeted searches for each niche
     all_content_pieces = []
     
-    # Run fresh targeted searches to gather raw data for synthesis
     for niche in state.get("search_queries", []):
         try:
-            query = f"{niche} contact email phone {criteria}"
+            if persona:
+                query = f"{niche} contact details phone email {criteria}".strip()
+            else:
+                query = f"{niche} contact email phone {criteria}".strip()
+                
             results = search_events.invoke({
                 "query": query,
                 "start_date": start_date,
                 "max_results": min(state.get("max_results", 15), 20)
             })
-            for res in results[:5]:  # Use top 5 deep results per niche
+            for res in results[:5]:  # Use top 5 deep results per query
                 if res.get("content"):
                     all_content_pieces.append(
                         f"[SOURCE: {res['url']}]\n{res['content'][:config.SCRAPER_CONTENT_LIMIT]}"
@@ -305,19 +331,33 @@ def agentic_researcher_node(state: GraphState):
 
     full_context = "\n\n---\n\n".join(all_content_pieces)
     
-    prompt = (
-        f"You are an expert lead extraction agent with deep research capabilities.\n"
-        f"Your task: extract EVERY contact (name, email, phone) for UPCOMING EVENTS from the sources below.\n"
-        f"Niches: {niches}\n"
-        f"Criteria: {criteria}\n"
-        f"Current date: {current_date} | Events must start after: {start_date}\n"
-        f"RULES:\n"
-        f"- Only include events with start_date >= {start_date}. Set is_valid_date=False for past events.\n"
-        f"- Include ALL contacts even if information is partial.\n"
-        f"- Do NOT invent data. Only extract what is explicitly stated in the sources.\n"
-        f"- Extract every email and phone number you find.\n\n"
-        f"SOURCES:\n{full_context}"
-    )
+    if persona:
+        prompt = (
+            f"You are an expert lead extraction agent with deep research capabilities targeting business prospects for: '{persona}'.\n"
+            f"Your task: extract EVERY business contact (name, email, phone, website, company) from the sources below.\n"
+            f"Target product/service criteria: {criteria}\n"
+            f"Current date: {current_date}\n"
+            f"RULES:\n"
+            f"- If it's an event, it must start after {start_date}.\n"
+            f"- Include ALL contacts even if info is partial.\n"
+            f"- Do NOT invent data.\n"
+            f"- Extract every email and phone number you find.\n\n"
+            f"SOURCES:\n{full_context}"
+        )
+    else:
+        prompt = (
+            f"You are an expert lead extraction agent with deep research capabilities.\n"
+            f"Your task: extract EVERY contact (name, email, phone) for UPCOMING EVENTS from the sources below.\n"
+            f"Niches: {', '.join(state.get('search_queries', []))}\n"
+            f"Criteria: {criteria}\n"
+            f"Current date: {current_date} | Events must start after: {start_date}\n"
+            f"RULES:\n"
+            f"- Only include events with start_date >= {start_date}. Set is_valid_date=False for past events.\n"
+            f"- Include ALL contacts even if information is partial.\n"
+            f"- Do NOT invent data. Only extract what is explicitly stated in the sources.\n"
+            f"- Extract every email and phone number you find.\n\n"
+            f"SOURCES:\n{full_context}"
+        )
     
     try:
         extraction = llm.invoke(prompt)
@@ -380,7 +420,9 @@ def deduplicator_node(state: GraphState):
             "phone": lead.phone,
             "event_name": lead.event_name,
             "event_url": lead.event_url,
-            "status": "new"
+            "status": "new",
+            "persona_type": state.get("persona_type"),
+            "target_product": state.get("target_product")
         }
         
         try:
@@ -396,7 +438,11 @@ def deduplicator_node(state: GraphState):
             logger.info(f"Deduplicator: Lead processed: {db_lead.email or db_lead.phone} (is_new={is_new})")
             
             # Mailchimp sync REQUIRES an email. Skip if None.
-            if is_new and config.ENABLE_MAILCHIMP_SYNC and db_lead.email:
+            sync_enabled = state.get("sync_mailchimp")
+            if sync_enabled is None:
+                sync_enabled = config.ENABLE_MAILCHIMP_SYNC
+            
+            if is_new and sync_enabled and db_lead.email:
                 name_parts = (lead.name or "").split(" ")
                 first_name = name_parts[0] if name_parts else ""
                 last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""

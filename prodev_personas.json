@@ -1,0 +1,75 @@
+{
+  "_comment": "Archivo de configuración de personas de prospección de ProDev Solution. Edita las listas de 'queries' libremente. Cada entrada es una consulta de búsqueda.",
+  "evinra_events": {
+    "name": "Evinra — Operadores de Eventos",
+    "product": "Evinra",
+    "description": "Operadores de venues, ferias, festivales y eventos en crecimiento que necesitan ticketing, POS y scan.",
+    "target_roles": ["Event Manager", "Venue Director", "Festival Organizer", "Promoter", "Event Coordinator"],
+    "queries": [
+      "fairgrounds events venues Florida contact email 2026",
+      "event venue operator manager Florida ticketing system contact",
+      "concert festival promoter Florida events 2026 contact email",
+      "event organizer expo Florida venue manager email phone",
+      "festival fairgrounds director contact Florida 2026",
+      "event center manager Florida operations contact",
+      "outdoor festival organizer Southeast USA contact email"
+    ],
+    "criteria": "event venues and operators in Florida looking for ticketing, POS or event management technology",
+    "geo_focus": "Florida, Southeast USA",
+    "priority": "high"
+  },
+  "travelorhub_transport": {
+    "name": "TravelorHub — Operadores de Transporte",
+    "product": "TravelorHub",
+    "description": "Charter bus, airport shuttles, tours en el Caribe y Florida que necesitan gestión de flotas y reservas.",
+    "target_roles": ["Owner", "Operations Manager", "Fleet Manager", "Director", "Transportation Coordinator"],
+    "queries": [
+      "charter bus company Florida owner contact email",
+      "airport shuttle service Florida operator contact",
+      "Caribbean tour operator transportation contact email",
+      "group transportation company Florida director operations",
+      "excursion tour company Caribbean island operator contact",
+      "bus charter company Puerto Rico Dominican Republic contact",
+      "tour operator shuttle Florida Caribbean fleet management",
+      "private transportation company Miami Orlando contact"
+    ],
+    "criteria": "transportation and charter tour operators in Florida and the Caribbean needing fleet management software",
+    "geo_focus": "Florida, Caribbean (Puerto Rico, Dominican Republic, Jamaica, Bahamas)",
+    "priority": "high"
+  },
+  "custom_dev_smb": {
+    "name": "Custom Dev — SMB Operacional (Audit Gratuito)",
+    "product": "Custom Development",
+    "description": "Dueños de PYME en Florida que usan Excel/WhatsApp para operar y necesitan automatización.",
+    "target_roles": ["Owner", "CEO", "Founder", "General Manager", "Operations Manager"],
+    "queries": [
+      "small business owner operations management Florida contact",
+      "restaurant owner automation scheduling system Tampa Bay contact",
+      "contractor business management software quote Florida",
+      "salon spa owner appointment management system Florida contact",
+      "retail store owner inventory management small business Florida",
+      "landscaping company owner operations management software Florida",
+      "cleaning company owner scheduling management software contact"
+    ],
+    "criteria": "small business owners in Florida struggling with manual operations who need automation",
+    "geo_focus": "Florida (Tampa Bay, Miami, Orlando, Jacksonville)",
+    "priority": "medium"
+  },
+  "custom_dev_founders": {
+    "name": "Custom Dev — Founders No-Técnicos (MVP SaaS)",
+    "product": "Custom Development / MVP Build",
+    "description": "Founders SaaS sin equipo técnico que buscan partner de desarrollo. Tracción manual validada.",
+    "target_roles": ["Founder", "Co-Founder", "CEO", "Owner"],
+    "queries": [
+      "non-technical founder looking for development partner SaaS",
+      "startup founder MVP development partner Florida",
+      "pre-seed startup founder custom software development contact",
+      "indie founder building SaaS product development partner",
+      "founder looking for CTO co-founder technical partner",
+      "\"turning our service into a product\" founder development partner"
+    ],
+    "criteria": "non-technical founders with validated ideas needing a software development partner",
+    "geo_focus": "Florida, remote (USA)",
+    "priority": "low"
+  }
+}

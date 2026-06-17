@@ -1,5 +1,7 @@
 import os
 import logging
+import csv
+import io
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Boolean, Text, UniqueConstraint
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -24,7 +26,14 @@ class Lead(Base):
     event_url = Column(Text, nullable=True)
     event_start_date = Column(DateTime, nullable=True)
     event_end_date = Column(DateTime, nullable=True)
-    
+    website = Column(Text, nullable=True)
+
+    # ProDev prospecting classification
+    persona_type = Column(String(100), nullable=True)   # e.g. 'evinra_events', 'old_client'
+    target_product = Column(String(100), nullable=True) # e.g. 'Evinra', 'TravelorHub'
+    source_type = Column(String(50), default='web_search') # 'web_search', 'csv_import', 'manual'
+    notes = Column(Text, nullable=True)
+
     # State tracking
     status = Column(String(50), default='new') # new, marketed, responded, invalid
     campaign_sent = Column(Boolean, default=False)
@@ -34,10 +43,6 @@ class Lead(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
-        # Unique constraint adjusted: if email is None, we still want to avoid duplicates for the same event and phone?
-        # For simplicity, we keep email+event_name but allow email to be NULL. 
-        # In SQLite, NULL values in UniqueConstraint are treated as distinct, so we might get duplicates if many leads have no email for the same event.
-        # However, repository.add_lead handles the check manually.
         UniqueConstraint('email', 'event_name', name='uix_email_event_name'),
     )
 
@@ -50,7 +55,31 @@ class LeadRepository:
     def __init__(self, db_url=DATABASE_URL):
         self.engine = create_engine(db_url, echo=False)
         Base.metadata.create_all(self.engine)
+        self._run_migrations()
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+
+    def _run_migrations(self):
+        from sqlalchemy import text
+        try:
+            with self.engine.connect() as conn:
+                res = conn.execute(text("PRAGMA table_info(leads)")).fetchall()
+                existing_cols = [row[1] for row in res]
+                
+                new_columns = {
+                    "website": "TEXT",
+                    "persona_type": "VARCHAR(100)",
+                    "target_product": "VARCHAR(100)",
+                    "source_type": "VARCHAR(50) DEFAULT 'web_search'",
+                    "notes": "TEXT"
+                }
+                
+                for col_name, col_type in new_columns.items():
+                    if col_name not in existing_cols:
+                        logger.info(f"Database Migration: Adding column '{col_name}' to table 'leads'")
+                        conn.execute(text(f"ALTER TABLE leads ADD COLUMN {col_name} {col_type}"))
+                        conn.commit()
+        except Exception as e:
+            logger.error(f"Error running database migrations: {e}")
 
     def add_lead(self, lead_data: dict) -> tuple[Lead, bool]:
         """
@@ -132,13 +161,26 @@ class LeadRepository:
         finally:
             session.close()
 
-    def get_recent_leads(self, limit: int = None):
+    def get_recent_leads(self, limit: int = None, persona_type: str = "All", target_product: str = "All"):
         """
-        Fetches the most recently added leads.
+        Fetches the most recently added leads, with optional filters for persona_type and target_product.
         """
         session = self.SessionLocal()
         try:
-            return session.query(Lead).order_by(Lead.created_at.desc()).limit(limit).all()
+            query = session.query(Lead)
+            if persona_type and persona_type != "All":
+                if persona_type == "sin_clasificar":
+                    query = query.filter((Lead.persona_type == None) | (Lead.persona_type == ""))
+                else:
+                    query = query.filter(Lead.persona_type == persona_type)
+            
+            if target_product and target_product != "All":
+                if target_product == "sin_clasificar":
+                    query = query.filter((Lead.target_product == None) | (Lead.target_product == ""))
+                else:
+                    query = query.filter(Lead.target_product == target_product)
+            
+            return query.order_by(Lead.created_at.desc()).limit(limit).all()
         finally:
             session.close()
             
@@ -175,6 +217,115 @@ class LeadRepository:
             return False
         finally:
             session.close()
+
+    def import_old_clients_csv(self, csv_content: str) -> dict:
+        """
+        Imports old clients from a CSV string (file upload or manual paste).
+        Columns: Nombre, Empresa, Email, Telefono, Sitio Web, Ciudad, Pais,
+                 Ultimo Contacto, Producto Usado, Notas
+        Returns a dict with counts: inserted, skipped, errors.
+        """
+        counts = {"inserted": 0, "skipped": 0, "errors": 0, "details": []}
+        try:
+            reader = csv.DictReader(io.StringIO(csv_content))
+            for row in reader:
+                try:
+                    email = (row.get("Email") or row.get("email") or "").strip() or None
+                    phone = (row.get("Telefono") or row.get("Phone") or row.get("phone") or "").strip() or None
+                    name  = (row.get("Nombre") or row.get("Name") or row.get("name") or "").strip() or None
+                    company = (row.get("Empresa") or row.get("Company") or row.get("company") or "").strip() or None
+                    website = (row.get("Sitio Web") or row.get("Website") or row.get("website") or "").strip() or None
+                    city    = (row.get("Ciudad") or row.get("City") or row.get("city") or "").strip()
+                    country = (row.get("Pais") or row.get("Country") or row.get("country") or "").strip()
+                    product = (row.get("Producto Usado") or row.get("Product Used") or row.get("product_used") or "").strip() or None
+                    notes   = (row.get("Notas") or row.get("Notes") or row.get("notes") or "").strip() or None
+                    last_contact_str = (row.get("Ultimo Contacto") or row.get("Last Contact") or row.get("last_contact") or "").strip()
+
+                    if not email and not phone:
+                        counts["errors"] += 1
+                        counts["details"].append(f"Fila sin email ni teléfono: {row}")
+                        continue
+
+                    # Build a synthetic event_name to satisfy the unique constraint
+                    event_name = f"[OLD CLIENT] {company or name or 'Unknown'}"
+
+                    lead_data = {
+                        "name": f"{name} ({company})" if company else name,
+                        "email": email,
+                        "phone": phone,
+                        "website": website,
+                        "event_name": event_name,
+                        "event_url": website,
+                        "persona_type": "old_client",
+                        "target_product": product,
+                        "source_type": "csv_import",
+                        "notes": f"Ciudad: {city}, País: {country}. {notes or ''}".strip(". "),
+                        "status": "new",
+                    }
+
+                    _, is_new = self.add_lead(lead_data)
+                    if is_new:
+                        counts["inserted"] += 1
+                        counts["details"].append(f"✅ Importado: {name or email}")
+                    else:
+                        counts["skipped"] += 1
+                        counts["details"].append(f"⏭️ Ya existe: {name or email}")
+                except Exception as row_err:
+                    counts["errors"] += 1
+                    counts["details"].append(f"❌ Error en fila: {row_err}")
+                    logger.error(f"Error importing row {row}: {row_err}")
+        except Exception as e:
+            logger.error(f"CSV parsing error: {e}")
+            counts["errors"] += 1
+            counts["details"].append(f"❌ Error parseando CSV: {e}")
+        return counts
+
+    def add_manual_contact(self, name: str, company: str, email: str, phone: str,
+                           website: str, city: str, country: str,
+                           product: str, notes: str) -> tuple:
+        """
+        Adds a single contact manually (from form input). Returns (Lead, is_new).
+        """
+        if not email and not phone:
+            raise ValueError("Se requiere al menos email o teléfono.")
+
+        event_name = f"[OLD CLIENT] {company or name or 'Unknown'}"
+        lead_data = {
+            "name": f"{name} ({company})" if company else name,
+            "email": email or None,
+            "phone": phone or None,
+            "website": website or None,
+            "event_name": event_name,
+            "event_url": website or None,
+            "persona_type": "old_client",
+            "target_product": product or None,
+            "source_type": "manual",
+            "notes": f"Ciudad: {city}, País: {country}. {notes or ''}".strip(". "),
+            "status": "new",
+        }
+        return self.add_lead(lead_data)
+
+    def get_leads_by_persona(self, persona_type: str, limit: int = None):
+        """Returns all leads for a given persona_type."""
+        session = self.SessionLocal()
+        try:
+            q = session.query(Lead).filter_by(persona_type=persona_type).order_by(Lead.created_at.desc())
+            if limit:
+                q = q.limit(limit)
+            return q.all()
+        finally:
+            session.close()
+
+    def get_stats_by_persona(self):
+        """Returns lead counts grouped by persona_type."""
+        session = self.SessionLocal()
+        try:
+            from sqlalchemy import func
+            rows = session.query(Lead.persona_type, func.count(Lead.id)).group_by(Lead.persona_type).all()
+            return {r[0] or "sin_clasificar": r[1] for r in rows}
+        finally:
+            session.close()
+
 
 # Global repository instance
 repository = LeadRepository()
