@@ -115,7 +115,18 @@ jobs:
             uv sync
             
             echo "🎭 Installing Playwright browsers..."
-            uv run playwright install --with-deps chromium
+            PLAYWRIGHT_SUCCESS=false
+            for i in 1 2 3 4 5; do
+              if uv run playwright install --with-deps chromium; then
+                PLAYWRIGHT_SUCCESS=true
+                break
+              fi
+              echo "   Attempt $i failed, waiting 15s before retry..."
+              sleep 15
+            done
+            if [ "$PLAYWRIGHT_SUCCESS" = false ]; then
+              echo "⚠️  Playwright browser install failed after 5 attempts. Continuing..."
+            fi
             
             # Parar la aplicación que pudiese estar corriendo en el puerto 7860
             echo "🛑 Stopping existing application on port 7860..."
