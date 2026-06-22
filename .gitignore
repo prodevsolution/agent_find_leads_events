@@ -22,3 +22,9 @@ startup.log
 
 # Local CSV storage (generated lead data)
 data/csv/
+
+# Google Drive OAuth token (contains secrets — DO NOT COMMIT)
+gdrive_token.json
+
+# Old service account credentials
+google_drive_docs/
