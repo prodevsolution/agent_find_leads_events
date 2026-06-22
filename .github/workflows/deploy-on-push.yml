@@ -91,7 +91,17 @@ jobs:
             SMTP_PASS=${{ secrets.SMTP_PASS }}
             TO_EMAIL=${{ secrets.TO_EMAIL }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
+            GDRIVE_CLIENT_ID=${{ secrets.GDRIVE_CLIENT_ID }}
+            GDRIVE_CLIENT_SECRET=${{ secrets.GDRIVE_CLIENT_SECRET }}
+            GDRIVE_FOLDER_ID=${{ secrets.GDRIVE_FOLDER_ID }}
+            GDRIVE_TOKEN_PATH=gdrive_token.json
+            CSV_STORAGE_DIR=data/csv
             ENV_EOF
+            
+            # Restaurar token de Google Drive
+            echo "☁️ Restoring Google Drive token..."
+            echo '${{ secrets.GDRIVE_TOKEN_JSON }}' > gdrive_token.json
+            mkdir -p data/csv
             
             # Instalando o verificando uv (Python dependency manager)
             export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"

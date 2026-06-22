@@ -261,11 +261,13 @@ def refresh_dashboard(log_level="ALL", page=1, persona_filter="All", product_fil
     if not p_stats_str:
         p_stats_str = "\n    - No classified leads yet."
 
+    li_count = repository.count_by_source("linkedin_search")
     stats_markdown = f"""
     ### 📊 Lead Statistics
     - **Total Leads Collected**: {stats['total_leads']}
     - **Emails Sent (Mailchimp)**: {stats['sent_count']}
     - **Responses Detected**: {stats['responded_count']}
+    - **LinkedIn Profiles Found**: {li_count}
     - **Leads by Persona**:{p_stats_str}
     """
     
@@ -408,6 +410,25 @@ def on_add_manual_contact(name, company, email, phone, website, city, country, p
             notes=notes
         )
         if is_new:
+            # Sync to GDrive old_client CSV
+            try:
+                from gdrive_manager import sync_leads_to_drive
+                sync_leads_to_drive([{
+                    "name": lead.name,
+                    "email": lead.email,
+                    "phone": lead.phone,
+                    "event_name": lead.event_name,
+                    "event_url": lead.event_url,
+                    "event_start_date": "",
+                    "event_end_date": "",
+                    "persona_type": "old_client",
+                    "target_product": product,
+                    "source_type": "manual",
+                    "notes": notes or "",
+                    "status": "new",
+                }])
+            except Exception:
+                logger.warning("GDrive sync skipped for manual contact", exc_info=True)
             return f"✅ Contact added successfully: {lead.name or lead.email or lead.phone}"
         return f"⏭️ Contact already exists: {lead.name or lead.email or lead.phone}"
     except Exception as e:
@@ -437,7 +458,50 @@ def on_import_csv(csv_text, file_obj):
     )
     if len(res['details']) > 30:
         summary += f"\n...and {len(res['details']) - 30} more rows."
+
+    # Sync newly inserted leads to GDrive old_client CSV
+    if res["inserted"] > 0:
+        try:
+            from gdrive_manager import sync_leads_to_drive as _gdrive_sync
+            from database import repository as _repo
+            imported = _repo.get_leads_by_persona("old_client", limit=res["inserted"])
+            leads_for_drive = []
+            for lead in imported:
+                leads_for_drive.append({
+                    "name": lead.name,
+                    "email": lead.email,
+                    "phone": lead.phone,
+                    "event_name": lead.event_name,
+                    "event_url": lead.event_url,
+                    "event_start_date": lead.event_start_date,
+                    "event_end_date": lead.event_end_date,
+                    "persona_type": "old_client",
+                    "target_product": lead.target_product,
+                    "source_type": "csv_import",
+                    "notes": lead.notes,
+                    "status": "new",
+                })
+            written = _gdrive_sync(leads_for_drive)
+            summary += f"\n\nGoogle Drive sync: {written} rows written to old_client CSV."
+        except Exception:
+            logger.warning("GDrive sync skipped for CSV import", exc_info=True)
+
     return summary
+
+# --- Google Drive CSV Download ---
+def download_persona_csv(persona_key: str):
+    """Download persona CSV from Drive (fallback to local DB) and return temp file path."""
+    try:
+        from gdrive_manager import download_csv_to_temp
+        path = download_csv_to_temp(persona_key)
+        if path:
+            logger.info(f"CSV ready for download: {path}")
+            return path
+        logger.warning(f"No CSV available for persona: {persona_key}")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to download CSV for {persona_key}: {e}")
+        return None
 
 
 custom_css = """
@@ -578,6 +642,23 @@ with gr.Blocks(title="Event & ProDev Prospecting Monitor") as demo:
                     prodev_run_btn = gr.Button("Run ProDev Agents Now", variant="primary")
                     prodev_status_output = gr.Textbox(label="Run Status Message", interactive=False)
 
+                    gr.Markdown("### 📥 Download Persona CSV")
+                    gr.Markdown("Download the latest leads CSV for each persona.")
+                    with gr.Row():
+                        dl_evinra_btn = gr.Button("📥 Evinra Events", size="sm")
+                        dl_travelorhub_btn = gr.Button("📥 TravelorHub", size="sm")
+                        dl_custom_smb_btn = gr.Button("📥 Custom Dev SMB", size="sm")
+                        dl_custom_founders_btn = gr.Button("📥 Custom Dev Founders", size="sm")
+                    persona_dl_output = gr.File(label="Downloaded CSV")
+
+                    gr.Markdown("### 📤 Import CSV to Persona")
+                    gr.Markdown("Upload a CSV with leads for the selected persona. The data will be added to the database and local CSV file.")
+                    with gr.Row():
+                        import_csv_file_in = gr.File(label="Subir archivo CSV", file_types=[".csv"], scale=1)
+                        import_csv_text_in = gr.TextArea(label="O pegar contenido CSV", placeholder="name,email,phone,event_name,notes\n...", lines=5, scale=1)
+                    import_csv_btn = gr.Button("📥 Importar Leads a Persona", variant="primary")
+                    import_csv_status = gr.TextArea(label="Resultado", interactive=False, lines=6)
+
                 # --- TAB 3: Old Clients Manager ---
                 with gr.TabItem("👥 Clientes Antiguos (Persona 5)"):
                     gr.Markdown("### 📝 Gestionar Contactos y Reactivación")
@@ -627,6 +708,11 @@ with gr.Blocks(title="Event & ProDev Prospecting Monitor") as demo:
             with gr.Row():
                 clear_db_btn = gr.Button("🗑️ Clear Database", variant="stop")
                 stop_server_btn = gr.Button("🛑 Stop Server", variant="stop")
+
+            # --- Download Old Clients CSV from GDrive ---
+            gr.Markdown("### 📥 Download Old Clients CSV from Google Drive")
+            dl_old_client_btn = gr.Button("📥 Descargar CSV de Clientes Antiguos", size="sm")
+            old_client_dl_output = gr.File(label="Old Clients CSV")
 
         with gr.Column(scale=1):
             # All Leads and Logs in second column
@@ -841,6 +927,96 @@ with gr.Blocks(title="Event & ProDev Prospecting Monitor") as demo:
         fn=on_import_csv,
         inputs=[csv_paste_in, csv_file_in],
         outputs=[csv_status_out]
+    )
+
+    # --- Wire up Persona CSV download buttons ---
+    dl_evinra_btn.click(
+        fn=lambda: download_persona_csv("evinra_events"),
+        inputs=[],
+        outputs=[persona_dl_output]
+    )
+    dl_travelorhub_btn.click(
+        fn=lambda: download_persona_csv("travelorhub_transport"),
+        inputs=[],
+        outputs=[persona_dl_output]
+    )
+    dl_custom_smb_btn.click(
+        fn=lambda: download_persona_csv("custom_dev_smb"),
+        inputs=[],
+        outputs=[persona_dl_output]
+    )
+    dl_custom_founders_btn.click(
+        fn=lambda: download_persona_csv("custom_dev_founders"),
+        inputs=[],
+        outputs=[persona_dl_output]
+    )
+
+    # --- Wire up Persona CSV import ---
+    def import_csv_for_persona_wrapper(persona_key, csv_text, file_obj):
+        if not persona_key or persona_key == "old_client":
+            return "Selecciona una persona activa primero."
+        content = ""
+        if file_obj is not None:
+            try:
+                with open(file_obj.name, "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read()
+            except Exception as e:
+                return f"Error leyendo archivo: {e}"
+        elif csv_text and csv_text.strip():
+            content = csv_text.strip()
+        else:
+            return "Pega contenido CSV o sube un archivo."
+
+        persona_name = prodev_manager.get_persona_product(persona_key)
+        result = repository.import_persona_csv(content, persona_key, persona_name)
+
+        # Sync imported leads to local CSV
+        if result["inserted"] > 0:
+            try:
+                from gdrive_manager import sync_leads_to_drive as _gdrive_sync
+                imported = repository.get_leads_by_persona(persona_key, limit=result["inserted"])
+                leads_for_csv = []
+                for lead in imported:
+                    leads_for_csv.append({
+                        "name": lead.name,
+                        "email": lead.email,
+                        "phone": lead.phone,
+                        "event_name": lead.event_name,
+                        "event_url": lead.event_url,
+                        "event_start_date": lead.event_start_date or "",
+                        "event_end_date": lead.event_end_date or "",
+                        "persona_type": persona_key,
+                        "target_product": lead.target_product,
+                        "source_type": "csv_import",
+                        "notes": lead.notes,
+                        "status": "new",
+                    })
+                _gdrive_sync(leads_for_csv)
+            except Exception:
+                logger.warning("Local CSV sync skipped for import", exc_info=True)
+
+        summary = (
+            f"Importacion para '{persona_key}':\n"
+            f"Insertados: {result['inserted']}\n"
+            f"Saltados: {result['skipped']}\n"
+            f"Errores: {result['errors']}\n\n"
+            + "\n".join(result['details'][:30])
+        )
+        if len(result['details']) > 30:
+            summary += f"\n...y {len(result['details']) - 30} filas mas."
+        return summary
+
+    import_csv_btn.click(
+        fn=import_csv_for_persona_wrapper,
+        inputs=[persona_selector, import_csv_text_in, import_csv_file_in],
+        outputs=[import_csv_status]
+    )
+
+    # --- Wire up Old Clients CSV download button ---
+    dl_old_client_btn.click(
+        fn=lambda: download_persona_csv("old_client"),
+        inputs=[],
+        outputs=[old_client_dl_output]
     )
 
     def load_niches_for_ui():

@@ -59,3 +59,12 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///leads.db")
 
 # SEARCH QUANTITY
 SUMMARIZER_RESULT_LIMIT = int(os.getenv("SUMMARIZER_RESULT_LIMIT", "50"))
+
+# LOCAL CSV STORAGE (fallback / primary when GDrive is not configured)
+CSV_STORAGE_DIR = os.getenv("CSV_STORAGE_DIR", "data/csv")
+
+# GOOGLE DRIVE CONFIGURATION (OAuth 2.0 — persona CSV sync)
+GDRIVE_CLIENT_ID = os.getenv("GDRIVE_CLIENT_ID")
+GDRIVE_CLIENT_SECRET = os.getenv("GDRIVE_CLIENT_SECRET")
+GDRIVE_TOKEN_PATH = os.getenv("GDRIVE_TOKEN_PATH", "gdrive_token.json")
+GDRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")

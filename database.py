@@ -316,6 +316,14 @@ class LeadRepository:
         finally:
             session.close()
 
+    def count_by_source(self, source_type: str) -> int:
+        """Returns count of leads with a specific source_type."""
+        session = self.SessionLocal()
+        try:
+            return session.query(Lead).filter_by(source_type=source_type).count()
+        finally:
+            session.close()
+
     def get_stats_by_persona(self):
         """Returns lead counts grouped by persona_type."""
         session = self.SessionLocal()
@@ -325,6 +333,77 @@ class LeadRepository:
             return {r[0] or "sin_clasificar": r[1] for r in rows}
         finally:
             session.close()
+
+    def import_persona_csv(self, csv_content: str, persona_key: str, persona_name: str = None) -> dict:
+        """
+        Imports leads from CSV for a specific persona_key.
+        CSV columns: name, email, phone, event_name, event_url, notes (flexible headers).
+        Returns dict with inserted, skipped, errors, details.
+        """
+        counts = {"inserted": 0, "skipped": 0, "errors": 0, "details": []}
+        try:
+            reader = csv.DictReader(io.StringIO(csv_content))
+            fieldnames_lower = [h.lower().strip() for h in reader.fieldnames or []]
+
+            for row in reader:
+                try:
+                    email = (row.get("Email") or row.get("email") or "").strip().lower() or None
+                    phone = (row.get("Phone") or row.get("phone") or row.get("Telefono") or row.get("telefono") or "").strip() or None
+                    name  = (row.get("Name") or row.get("name") or row.get("Nombre") or row.get("nombre") or "").strip() or None
+                    company = (row.get("Company") or row.get("company") or row.get("Empresa") or row.get("empresa") or "").strip() or None
+                    website = (row.get("Website") or row.get("website") or row.get("Sitio Web") or row.get("Url") or row.get("url") or row.get("event_url") or "").strip() or None
+                    event_url = website
+                    event_name = (row.get("event_name") or row.get("Event") or row.get("event") or row.get("Event Name") or "").strip() or None
+                    notes = (row.get("Notes") or row.get("notes") or row.get("Notas") or row.get("notas") or "").strip() or None
+
+                    s_date = row.get("event_start_date") or row.get("Start Date") or ""
+                    e_date = row.get("event_end_date") or row.get("End Date") or ""
+
+                    if not email and not phone:
+                        counts["errors"] += 1
+                        counts["details"].append(f"Sin email ni telefono: {dict(row)}")
+                        continue
+
+                    lead_data = {
+                        "name": name,
+                        "email": email,
+                        "phone": phone,
+                        "website": website,
+                        "event_url": event_url,
+                        "event_name": event_name or f"[{persona_name or persona_key}] {company or name or 'Unknown'}",
+                        "event_start_date": self._parse_date(s_date) if s_date else None,
+                        "event_end_date": self._parse_date(e_date) if e_date else None,
+                        "persona_type": persona_key,
+                        "target_product": persona_name,
+                        "source_type": "csv_import",
+                        "notes": notes,
+                        "status": "new",
+                    }
+
+                    _, is_new = self.add_lead(lead_data)
+                    if is_new:
+                        counts["inserted"] += 1
+                        counts["details"].append(f"Insertado: {name or email}")
+                    else:
+                        counts["skipped"] += 1
+                        counts["details"].append(f"Ya existe: {name or email}")
+                except Exception as row_err:
+                    counts["errors"] += 1
+                    counts["details"].append(f"Error fila: {row_err}")
+                    logger.error(f"Error importing persona CSV row {row}: {row_err}")
+        except Exception as e:
+            logger.error(f"CSV parsing error: {e}")
+            counts["errors"] += 1
+            counts["details"].append(f"Error parsing CSV: {e}")
+        return counts
+
+    def _parse_date(self, val: str):
+        """Try to parse a date string, return None on failure."""
+        from dateutil import parser as date_parser
+        try:
+            return date_parser.parse(val)
+        except Exception:
+            return None
 
 
 # Global repository instance

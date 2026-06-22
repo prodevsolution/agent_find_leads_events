@@ -18,3 +18,7 @@ leads.db
 active_niches.json
 startup.log
 *.log
+.opencode
+
+# Local CSV storage (generated lead data)
+data/csv/

@@ -40,6 +40,17 @@ class ExtractedLeads(BaseModel):
 class EntityList(BaseModel):
     entities: List[str] = Field(description="List of company names, venues, or organizations found in the LLM's knowledge for a niche.")
 
+class LinkedInProfile(BaseModel):
+    name: str | None = Field(default=None, description="Person's name from LinkedIn profile.")
+    title: str | None = Field(default=None, description="Job title or headline from LinkedIn.")
+    company: str | None = Field(default=None, description="Company or organization.")
+    location: str | None = Field(default=None, description="Geographic location.")
+    profile_url: str | None = Field(default=None, description="LinkedIn profile URL.")
+    snippet: str | None = Field(default=None, description="Raw snippet text from search.")
+
+class ExtractedLinkedInProfiles(BaseModel):
+    profiles: List[LinkedInProfile] = Field(description="List of LinkedIn profiles extracted from search results.")
+
 class GraphState(TypedDict):
     search_queries: list[str]
     search_criteria: str
@@ -67,6 +78,8 @@ class GraphState(TypedDict):
     all_search_content: Annotated[list[str], operator.add]
     agentic_leads: Annotated[list[LeadData], operator.add]
     sync_mailchimp: bool | None
+    # LinkedIn profiles found
+    linkedin_profiles: Annotated[list[LinkedInProfile], operator.add]
 
 
 
@@ -373,16 +386,17 @@ def agentic_researcher_node(state: GraphState):
 
 def deduplicator_node(state: GraphState):
     """
-    Compares results from Summarizer and Scraper paths.
+    Compares results from Summarizer, Scraper, Agentic, and LinkedIn paths.
     Saves results to DB and identifies coincidences.
     """
     logger.info("--- DEDUPLICATOR NODE ---")
     sum_leads = state.get("summarizer_leads", [])
     scr_leads = state.get("scraper_leads", [])
     agt_leads = state.get("agentic_leads", [])
+    linkedin = state.get("linkedin_profiles", [])
     
     all_leads = sum_leads + scr_leads + agt_leads
-    logger.info(f"Deduplicator: Summarizer={len(sum_leads)}, Scraper={len(scr_leads)}, Agentic={len(agt_leads)}, Total={len(all_leads)}")
+    logger.info(f"Deduplicator: Summarizer={len(sum_leads)}, Scraper={len(scr_leads)}, Agentic={len(agt_leads)}, LinkedIn={len(linkedin)}, Total={len(all_leads)}")
     unique_emails = {}
     marketed_emails = []
     saved_info = []
@@ -432,11 +446,29 @@ def deduplicator_node(state: GraphState):
                 lead_dict["event_end_date"] = date_parser.parse(lead.event_end_date)
         except: pass
 
+        lead_dict["source_type"] = "web_search"
+
         db_lead, is_new = repository.add_lead(lead_dict)
         if db_lead:
-            saved_info.append({"email": db_lead.email or "Phone Lead", "name": db_lead.name})
             logger.info(f"Deduplicator: Lead processed: {db_lead.email or db_lead.phone} (is_new={is_new})")
-            
+
+            # Build a richer entry for downstream consumers (GDrive sync)
+            entry = {
+                "name": db_lead.name,
+                "email": db_lead.email,
+                "phone": db_lead.phone,
+                "event_name": db_lead.event_name,
+                "event_url": db_lead.event_url,
+                "event_start_date": db_lead.event_start_date,
+                "event_end_date": db_lead.event_end_date,
+                "persona_type": db_lead.persona_type or state.get("persona_type"),
+                "target_product": db_lead.target_product or state.get("target_product"),
+                "source_type": db_lead.source_type or "web_search",
+                "notes": db_lead.notes,
+                "status": db_lead.status,
+            }
+            saved_info.append(entry)
+
             # Mailchimp sync REQUIRES an email. Skip if None.
             sync_enabled = state.get("sync_mailchimp")
             if sync_enabled is None:
@@ -452,6 +484,63 @@ def deduplicator_node(state: GraphState):
                     repository.update_lead_status(db_lead.id, status='marketed', campaign_sent=True)
                     marketed_emails.append(db_lead.email)
 
+    # Process LinkedIn profiles as leads
+    persona_type = state.get("persona_type")
+    target_product = state.get("target_product")
+    for prof in linkedin:
+        profile_url = prof.profile_url or ""
+        if not profile_url:
+            continue
+        # Check not already in saved leads
+        already = any(
+            entry.get("event_url") == profile_url
+            for entry in saved_info
+        )
+        if already:
+            continue
+
+        linkedin_note_parts = []
+        if prof.title:
+            linkedin_note_parts.append(f"Title: {prof.title}")
+        if prof.company:
+            linkedin_note_parts.append(f"Company: {prof.company}")
+        if prof.location:
+            linkedin_note_parts.append(f"Location: {prof.location}")
+        if prof.snippet:
+            linkedin_note_parts.append(f"Snippet: {prof.snippet[:200]}")
+
+        lead_dict = {
+            "name": prof.name or f"LinkedIn: {profile_url.split('/in/')[-1].rstrip('/')}",
+            "email": None,
+            "phone": None,
+            "event_name": f"[LINKEDIN] {prof.title or 'Profile'}",
+            "event_url": profile_url,
+            "status": "new",
+            "persona_type": persona_type,
+            "target_product": target_product,
+            "source_type": "linkedin_search",
+            "notes": " | ".join(linkedin_note_parts) if linkedin_note_parts else None,
+        }
+
+        db_lead, is_new = repository.add_lead(lead_dict)
+        if db_lead:
+            logger.info(f"Deduplicator: LinkedIn lead processed: {db_lead.name} ({profile_url}) is_new={is_new}")
+            entry = {
+                "name": db_lead.name,
+                "email": db_lead.email,
+                "phone": db_lead.phone,
+                "event_name": db_lead.event_name,
+                "event_url": db_lead.event_url,
+                "event_start_date": db_lead.event_start_date,
+                "event_end_date": db_lead.event_end_date,
+                "persona_type": db_lead.persona_type or persona_type,
+                "target_product": db_lead.target_product or target_product,
+                "source_type": db_lead.source_type or "linkedin_search",
+                "notes": db_lead.notes,
+                "status": db_lead.status,
+            }
+            saved_info.append(entry)
+
     return {
         "saved_leads": saved_info,
         "marketed_leads": marketed_emails,
@@ -465,9 +554,117 @@ def notifier_node(state: GraphState):
     if marketed_count > 0:
         message = f"Event Prospecting Agent Update:\nParallel run finished. Found {marketed_count} new leads."
         logger.info(message)
-        # Notifications here...
         return {"notifications_sent": True}
     return {"notifications_sent": False}
+
+
+def linkedin_searcher_node(state: GraphState):
+    """
+    Searches LinkedIn profiles for each persona query using Tavily.
+    Extracts name, title, company, location from search snippets without scraping full profiles.
+    """
+    logger.info("--- LINKEDIN SEARCHER NODE ---")
+    persona = state.get("persona_type")
+    criteria = state.get("search_criteria", "")
+
+    if not persona or persona == "old_client":
+        logger.info("LinkedIn searcher: no active persona, skipping.")
+        return {"linkedin_profiles": []}
+
+    queries = state.get("search_queries", [])
+    if not queries:
+        return {"linkedin_profiles": []}
+
+    linkedin_queries = [
+        f'{q} LinkedIn profile {criteria}'.strip()
+        for q in queries
+    ]
+    if criteria:
+        linkedin_queries.append(f'{persona} LinkedIn {criteria}')
+
+    all_snippets: list[dict] = []
+    seen_urls: set[str] = set()
+
+    for query in linkedin_queries:
+        try:
+            results = search_events.invoke({
+                "query": query,
+                "max_results": min(state.get("max_results", 15), 20)
+            })
+            for res in results:
+                url = res.get("url", "")
+                content = res.get("content", "")
+                if "linkedin.com/in/" in url and url not in seen_urls:
+                    seen_urls.add(url)
+                    all_snippets.append({"url": url, "content": content[:800]})
+        except Exception as e:
+            logger.error(f"LinkedIn search failed for '{query}': {e}")
+
+    if not all_snippets:
+        logger.info("LinkedIn searcher: no profiles found.")
+        return {"linkedin_profiles": []}
+
+    # Use LLM to extract profiles from snippets
+    from langchain_core.prompts import ChatPromptTemplate
+    llm = get_llm(model_override="gpt-4o-mini")
+    structured_llm = llm.with_structured_output(ExtractedLinkedInProfiles)
+
+    context = "\n\n".join(
+        f"URL: {s['url']}\nSnippet: {s['content']}"
+        for s in all_snippets
+    )
+
+    prompt = (
+        "Extract LinkedIn profile information from the following search results.\n"
+        f"Target persona: {persona}\n"
+        f"Target product: {state.get('target_product', '')}\n"
+        "For each result, extract: name, job title, company, location, and profile URL.\n"
+        "If a field is not available, leave it empty.\n"
+        "Return ALL results, do not skip any.\n\n"
+        f"Results:\n{context}"
+    )
+
+    try:
+        extraction = structured_llm.invoke(prompt)
+        logger.info(f"LinkedIn searcher extracted {len(extraction.profiles)} profiles")
+        return {"linkedin_profiles": extraction.profiles}
+    except Exception as e:
+        logger.error(f"LinkedIn profile extraction failed: {e}")
+        # Fallback: return raw snippets as basic profiles
+        fallback = []
+        for s in all_snippets[:20]:
+            fallback.append(LinkedInProfile(
+                profile_url=s["url"],
+                snippet=s["content"][:300],
+            ))
+        return {"linkedin_profiles": fallback}
+
+
+def gdrive_sync_node(state: GraphState):
+    """
+    Syncs all newly saved leads to their corresponding Google Drive CSV
+    (one CSV per persona type). Creates the CSV if it doesn't exist yet.
+    """
+    logger.info("--- GDRIVE SYNC NODE ---")
+    saved_leads = state.get("saved_leads", [])
+    if not saved_leads:
+        logger.info("No new leads to sync to Google Drive.")
+        return {}
+
+    try:
+        from gdrive_manager import sync_leads_to_drive as _gdrive_sync
+        total = _gdrive_sync(saved_leads)
+        if total:
+            logger.info(f"Google Drive sync complete: {total} leads written.")
+        else:
+            logger.info("Google Drive sync: no new rows (all duplicates or skipped).")
+    except ImportError:
+        logger.info("Google Drive dependencies not installed. Skipping GDrive sync.")
+    except Exception as e:
+        logger.error(f"Google Drive sync failed: {e}")
+
+    return {}
+
 
 # --- Graph Definition ---
 def build_graph() -> StateGraph:
@@ -477,27 +674,33 @@ def build_graph() -> StateGraph:
     workflow.add_node("summarizer", summarizer_node)
     workflow.add_node("searcher", searcher_node)
     workflow.add_node("scraper", scraper_node)
-    workflow.add_node("agentic_researcher", agentic_researcher_node)  # NEW: ChatGPT-style deep synthesis
+    workflow.add_node("agentic_researcher", agentic_researcher_node)
+    workflow.add_node("linkedin_searcher", linkedin_searcher_node)
     workflow.add_node("deduplicator", deduplicator_node)
     workflow.add_node("notifier", notifier_node)
+    workflow.add_node("gdrive_sync", gdrive_sync_node)
     
     workflow.set_entry_point("brainstormer")
     
-    # Brainstormer starts three parallel paths
+    # Brainstormer starts four parallel paths
     workflow.add_edge("brainstormer", "summarizer")          # Path 1: Fast summarizer (snippets)
     workflow.add_edge("brainstormer", "searcher")             # Path 2: Deep search -> scrape
-    workflow.add_edge("brainstormer", "agentic_researcher")  # Path 3: Holistic synthesis (ChatGPT-style)
+    workflow.add_edge("brainstormer", "agentic_researcher")  # Path 3: Holistic synthesis
+    workflow.add_edge("brainstormer", "linkedin_searcher")   # Path 4: LinkedIn profiles
     
     # Path 2: Search -> Scrape
     workflow.add_edge("searcher", "scraper")
     
-    # All three paths converge at deduplicator
+    # All four paths converge at deduplicator
     workflow.add_edge("summarizer", "deduplicator")
     workflow.add_edge("scraper", "deduplicator")
     workflow.add_edge("agentic_researcher", "deduplicator")
+    workflow.add_edge("linkedin_searcher", "deduplicator")
     
+    # Post-processing chain
     workflow.add_edge("deduplicator", "notifier")
-    workflow.add_edge("notifier", END)
+    workflow.add_edge("notifier", "gdrive_sync")
+    workflow.add_edge("gdrive_sync", END)
     
     return workflow.compile()
 
