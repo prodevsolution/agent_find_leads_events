@@ -69,13 +69,15 @@ def main():
         return
 
     # Print auth URL
+    LOGIN_HINT = "prodevsolution7708@gmail.com"
+
     params = {
         "client_id": client_id,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
         "scope": " ".join(SCOPES),
         "access_type": "offline",
-        "prompt": "consent",
+        "prompt": "select_account consent",
     }
     auth_url = "https://accounts.google.com/o/oauth2/auth?" + urlencode(params)
 

@@ -15,7 +15,8 @@ from twilio.rest import Client
 from langchain_core.tools import tool
 
 from config import (
-    TAVILY_API_KEY, MAILCHIMP_API_KEY, MAILCHIMP_SERVER_PREFIX, MAILCHIMP_LIST_ID,
+    TAVILY_API_KEY, SERPAPI_API_KEY,
+    MAILCHIMP_API_KEY, MAILCHIMP_SERVER_PREFIX, MAILCHIMP_LIST_ID,
     TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, TO_PHONE_NUMBER,
     SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASS, TO_EMAIL
 )
@@ -87,6 +88,40 @@ def search_events(query: str, start_date: str = None, end_date: str = None, max_
         return results
     except Exception as e:
         logger.error(f"Error during Tavily search: {e}")
+        logger.info("Falling back to SerpAPI...")
+        return _search_serpapi(full_query, max_results)
+
+
+def _search_serpapi(query: str, max_results: int = 30) -> list[dict]:
+    """
+    Fallback search via SerpAPI (Google search).
+    Used when Tavily rate limit is exceeded.
+    """
+    if not SERPAPI_API_KEY:
+        logger.error("SERPAPI_API_KEY not set, cannot fallback.")
+        return []
+
+    params = {
+        "api_key": SERPAPI_API_KEY,
+        "q": query,
+        "engine": "google",
+        "num": min(max_results, 100),
+        "hl": "en",
+    }
+    try:
+        resp = requests.get("https://serpapi.com/search", params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        organic = data.get("organic_results", [])
+        results = []
+        for r in organic:
+            title = r.get("title", "")
+            snippet = r.get("snippet", "")
+            link = r.get("link", "")
+            results.append({"url": link, "title": title, "content": snippet})
+        return results
+    except Exception as e:
+        logger.error(f"Error during SerpAPI fallback search: {e}")
         return []
 
 

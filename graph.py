@@ -4,6 +4,8 @@ from typing import TypedDict, Annotated, List, Any
 from datetime import datetime, timezone
 
 
+import json
+import re
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel, Field
@@ -15,6 +17,132 @@ from dateutil import parser as date_parser
 import config
 
 logger = logging.getLogger(__name__)
+
+# ── Fake / placeholder data filters ──────────────────────────────────────────
+
+FAKE_EMAIL_DOMAINS = {
+    "example.com", "example.org", "example.net",
+    "test.com", "test.org", "test.net",
+    "yourdomain.com", "yourname.com", "yourname.net",
+    "domain.com", "domain.net", "domain.org",
+    "sample.com", "sample.org", "sample.net",
+    "demo.com", "demo.org", "demo.net",
+    "fake.com", "placeholder.com",
+    "mailinator.com", "guerrillamail.com", "tempmail.com",
+    "throwaway.com", "yopmail.com",
+}
+
+GENERIC_NAMES = {
+    "lorem ipsum", "test user", "test name",
+    "sample user", "sample name", "demo user",
+    "first name", "last name",
+    "not provided", "not specified",
+}
+
+# Email local-part patterns that indicate placeholder/example data
+FAKE_EMAIL_LOCALPARTS = {
+    "johndoe", "janedoe", "johnsmith", "janesmith",
+    "test", "testing", "sample", "demo", "placeholder",
+    "yourname", "youremail", "name", "email",
+}
+
+# Phone patterns that are clearly fake/staging
+FAKE_PHONE_PREFIXES = {
+    "555", "000", "123", "999",
+}
+
+# Content strings that indicate non-production pages
+LOW_VALUE_CONTENT_SIGNALS = [
+    "under construction", "coming soon", "landing page",
+    "this page is not found", "page not found",
+    "redirecting", "go to homepage",
+    "lorem ipsum", "sample text", "placeholder",
+]
+
+
+def _is_fake_email(email: str | None) -> bool:
+    """Check if email is from a known placeholder domain or has placeholder local-part."""
+    if not email:
+        return False
+    email_lower = email.lower().strip()
+    if "@" not in email_lower:
+        return False
+    domain = email_lower.split("@")[-1]
+    local = email_lower.split("@")[0]
+
+    # Remove digits for local-part checking
+    local_clean = local.rstrip("0123456789")
+
+    if domain in FAKE_EMAIL_DOMAINS:
+        return True
+    if local_clean in FAKE_EMAIL_LOCALPARTS:
+        return True
+    return False
+
+
+def _is_fake_name(name: str | None) -> bool:
+    """Check if the name is a known generic/placeholder name."""
+    if not name:
+        return False
+    name_lower = name.strip().lower()
+    if name_lower in GENERIC_NAMES:
+        return True
+    parts = [p.strip() for p in name_lower.replace(",", "").split() if p.strip()]
+    generic_count = sum(1 for p in parts if p in GENERIC_NAMES)
+    return generic_count == len(parts) and len(parts) > 0
+
+
+def _is_fake_phone(phone: str | None) -> bool:
+    """Check if phone number is clearly fake/staging.
+    
+    Checks if the phone contains reserved/staging number patterns
+    (555 is reserved for fictional use in NANP).
+    """
+    if not phone:
+        return False
+    digits = "".join(c for c in phone if c.isdigit())
+    if len(digits) < 7:
+        return True  # Too short to be a real phone
+    # 555 numbers are reserved for fictional use (NANP)
+    if "555" in digits:
+        return True
+    # All same digits (0000000, 1111111, etc.)
+    if len(set(digits)) == 1:
+        return True
+    return False
+
+
+def _is_fake_lead(name: str | None, email: str | None, phone: str | None = None) -> bool:
+    """Returns True if the lead appears to be fake/placeholder data.
+    
+    Rules:
+      - If email has fake domain or placeholder local-part (johndoe@) → filter.
+      - If phone is a staging prefix (555-, 000-, 123-) → filter.
+      - If name is generic AND no real email → filter.
+      - If ALL three (name, email, phone) are missing/empty → filter.
+    """
+    if _is_fake_email(email):
+        return True
+    if _is_fake_phone(phone):
+        return True
+    if not email and not phone and _is_fake_name(name):
+        return True
+    return False
+
+
+def _is_low_value_content(content: str) -> bool:
+    """Check if page content is too thin or clearly a placeholder page."""
+    if not content:
+        return True
+    stripped = content.strip()
+    if len(stripped) < 150:
+        return True
+    # Check for non-production signals
+    lower = stripped.lower()
+    for signal in LOW_VALUE_CONTENT_SIGNALS:
+        if signal in lower:
+            return True
+    return False
 
 
 # --- Models ---
@@ -102,29 +230,78 @@ def get_llm(model_override: str = None):
             temperature=0,
             num_predict=config.OLLAMA_NUM_PREDICT,
             timeout=config.OLLAMA_TIMEOUT,
+            format="json",
         )
     elif provider == "openai":
         logger.info("Using OpenAI LLM (gpt-4o-mini) [fast/cheap]")
         return ChatOpenAI(model="gpt-4o-mini", temperature=0)
     else:
-        logger.info("Using Google Gemini LLM (gemini-2.0-flash)")
-        return ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+        logger.info("Using Google Gemini LLM (gemini-2.5-flash)")
+        return ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+
+def _extract_json(text: str):
+    """Extract JSON array or object from LLM text response."""
+    # Try to find JSON block ```json ... ``` or {...}
+    block = re.search(r"```(?:json)?\s*(\[.*?\]|\{.*?\})\s*```", text, re.DOTALL)
+    if block:
+        text = block.group(1)
+    # Try parsing as-is
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Find first { ... } or [ ... ] in text
+    for delim in ("{", "["):
+        start = text.find(delim)
+        if start == -1:
+            continue
+        end = text.rfind("}" if delim == "{" else "]")
+        if end > start:
+            try:
+                return json.loads(text[start:end+1])
+            except json.JSONDecodeError:
+                continue
+    return None
+
+def _invoke_structured(llm, prompt, pydantic_model):
+    """
+    Call LLM and parse structured output.
+    - OpenAI/Gemini: uses with_structured_output() (native tool calling).
+    - Ollama: uses format='json' + manual JSON extraction (Grammar-Constrained).
+    """
+    provider = config.LLM_PROVIDER
+    if provider == "ollama":
+        response = llm.invoke(prompt)
+        raw = response.content if hasattr(response, "content") else str(response)
+        data = _extract_json(raw)
+        if data is None:
+            logger.warning(f"LLM returned non-JSON output:\n{raw[:300]}")
+            raise ValueError("Invalid json output")
+        if isinstance(data, dict) and pydantic_model.__name__ == "ExtractedLeads":
+            if "leads" not in data:
+                data = {"leads": [data]}
+        if isinstance(data, dict) and pydantic_model.__name__ == "EntityList":
+            if "entities" not in data:
+                data = {"entities": data.get("entities", list(data.values())[0] if data else [])}
+        return pydantic_model.model_validate(data)
+    else:
+        structured = llm.with_structured_output(pydantic_model)
+        return structured.invoke(prompt)
 
 # Singleton caches per model role
-_extractor_structured = None  # For summarizer + scraper (uses EXTRACTOR_MODEL)
+_extractor_llm = None
 
 def get_structured_llm():
-    """Returns a cached structured-output LLM using EXTRACTOR_MODEL (gpt-4o by default)."""
-    global _extractor_structured
-    if _extractor_structured is None:
-        llm = get_llm(model_override=config.EXTRACTOR_MODEL)
-        _extractor_structured = llm.with_structured_output(ExtractedLeads)
+    """Returns a cached LLM instance for extraction (not using with_structured_output)."""
+    global _extractor_llm
+    if _extractor_llm is None:
+        _extractor_llm = get_llm(model_override=config.EXTRACTOR_MODEL)
         logger.info(f"Extractor LLM created: {config.EXTRACTOR_MODEL}")
-    return _extractor_structured
+    return _extractor_llm
 
 def get_brainstorm_llm():
-    """Returns a structured-output LLM for brainstorming (fast, cheap gpt-4o-mini)."""
-    return get_llm(model_override="gpt-4o-mini").with_structured_output(EntityList)
+    """Returns an LLM for brainstorming."""
+    return get_llm(model_override="gemini-2.5-flash")
 
 
 # --- Nodes ---
@@ -150,7 +327,7 @@ def brainstormer_node(state: GraphState):
             f"Return only the names."
         )
         try:
-            result = llm.invoke(prompt)
+            result = _invoke_structured(llm, prompt, EntityList)
             all_entities.extend(result.entities)
             logger.info(f"Brainstormed {len(result.entities)} entities for niche: {niche}")
         except Exception as e:
@@ -185,7 +362,15 @@ def summarizer_node(state: GraphState):
                 "max_results": state.get("max_results")
             })
             
-            context = "\n\n".join([f"Source: {res['url']}\nContent: {res['content']}" for res in results[:20]]) 
+            # Filter out low-value or empty content (prevents LLM hallucination)
+            valid_results = []
+            for res in results[:20]:
+                content = res.get("content") or ""
+                if _is_low_value_content(content):
+                    logger.debug(f"Skipping low-value content: {res.get('url')} ({len(content)} chars)")
+                    continue
+                valid_results.append(res)
+            context = "\n\n".join([f"Source: {res['url']}\nContent: {res['content']}" for res in valid_results]) 
             
             if persona:
                 prompt = (
@@ -194,7 +379,10 @@ def summarizer_node(state: GraphState):
                     f"extract a list of as many unique contacts as possible (emails, phone numbers, names, websites).\n"
                     f"Identify relevant business leads or upcoming event contacts as per the criteria: {criteria}.\n"
                     f"Do not skip any lead that has an email or phone number in the provided context.\n"
-                    f"Current date is {state['current_date']}.\n\n"
+                    f"Current date is {state['current_date']}.\n"
+                    f"CRITICAL: Only extract data explicitly present in the context above. "
+                    f"Never invent names, emails, phones, or any other information. "
+                    f"If a field is not found in the context, leave it empty (null).\n\n"
                     f"Context:\n{context}"
                 )
             else:
@@ -205,10 +393,13 @@ def summarizer_node(state: GraphState):
                     f"The current date is {state['current_date']}. "
                     f"Identify upcoming events in 2026 or later as per the criteria: {criteria}. "
                     f"IMPORTANT: Do not skip any lead that has an email or phone number in the provided context."
+                    f"CRITICAL: Only extract data explicitly present in the context. "
+                    f"Never invent names, emails, phones, or any other information. "
+                    f"If a field is not found in the context, leave it empty (null)."
                     f"\n\nContext:\n{context}"
                 )
             
-            extraction = llm.invoke(prompt)
+            extraction = _invoke_structured(llm, prompt, ExtractedLeads)
             logger.info(f"Summarizer LLM returned {len(extraction.leads)} raw leads for: {niche}")
             for lead in extraction.leads:
                 if lead.email or lead.phone:
@@ -280,16 +471,22 @@ def scraper_node(state: GraphState):
             else:
                 scraped_data = scrape_event_page.invoke({"url": url})
                 
-            if not scraped_data.get("content"):
+            content = scraped_data.get("content") or ""
+            if _is_low_value_content(content):
+                logger.debug(f"Skipping low-content scrape: {url} ({len(content)} chars)")
                 continue
                 
             prompt = (
                 f"Analyze the following event page content and identify contact leads (email, phone, name). "
                 f"Also identify the event name and dates. The current date is {current_date_str}. "
-                f"The page URL is: {url}\n\nContent:\n{scraped_data['content'][:config.SCRAPER_CONTENT_LIMIT]}"
+                f"The page URL is: {url}\n"
+                f"CRITICAL: Only extract data explicitly visible in the content below. "
+                f"Never invent names, emails, phones, event names, or any other information. "
+                f"If a field is not found, leave it empty (null).\n\n"
+                f"Content:\n{scraped_data['content'][:config.SCRAPER_CONTENT_LIMIT]}"
             )
             
-            extraction = llm.invoke(prompt)
+            extraction = _invoke_structured(llm, prompt, ExtractedLeads)
             logger.info(f"Scraper LLM returned {len(extraction.leads)} raw leads for {url}")
             for lead in extraction.leads:
                 # Filter: Valid date AND at least one contact method (email or phone)
@@ -373,7 +570,7 @@ def agentic_researcher_node(state: GraphState):
         )
     
     try:
-        extraction = llm.invoke(prompt)
+        extraction = _invoke_structured(llm, prompt, ExtractedLeads)
         valid = [
             lead for lead in extraction.leads
             if lead.is_valid_date and (lead.email or lead.phone)
@@ -428,6 +625,11 @@ def deduplicator_node(state: GraphState):
     logger.info(f"Deduplication: Total={len(all_leads)}, Unique={len(unique_emails)}, Coincidences={coincidences}")
 
     for item_key, lead in unique_emails.items():
+        # Skip fake / placeholder data
+        if _is_fake_lead(lead.name, lead.email, lead.phone):
+            logger.debug(f"Skipping fake lead: name={lead.name!r}, email={lead.email!r}, phone={lead.phone!r}")
+            continue
+
         lead_dict = {
             "name": lead.name,
             "email": lead.email, # Use lead.email instead of the loop key (item_key)
@@ -607,7 +809,6 @@ def linkedin_searcher_node(state: GraphState):
     # Use LLM to extract profiles from snippets
     from langchain_core.prompts import ChatPromptTemplate
     llm = get_llm(model_override="gpt-4o-mini")
-    structured_llm = llm.with_structured_output(ExtractedLinkedInProfiles)
 
     context = "\n\n".join(
         f"URL: {s['url']}\nSnippet: {s['content']}"
@@ -620,12 +821,14 @@ def linkedin_searcher_node(state: GraphState):
         f"Target product: {state.get('target_product', '')}\n"
         "For each result, extract: name, job title, company, location, and profile URL.\n"
         "If a field is not available, leave it empty.\n"
-        "Return ALL results, do not skip any.\n\n"
+        "Return ALL results, do not skip any.\n"
+        "Return as a JSON object with a 'profiles' array.\n"
+        "CRITICAL: Never invent data. Only extract what is explicitly present in the snippets.\n\n"
         f"Results:\n{context}"
     )
 
     try:
-        extraction = structured_llm.invoke(prompt)
+        extraction = _invoke_structured(llm, prompt, ExtractedLinkedInProfiles)
         logger.info(f"LinkedIn searcher extracted {len(extraction.profiles)} profiles")
         return {"linkedin_profiles": extraction.profiles}
     except Exception as e:

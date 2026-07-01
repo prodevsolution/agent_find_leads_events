@@ -32,6 +32,21 @@ AGENT_STATUS = "Idle"
 LAST_RUN = "Never"
 NEXT_RUN = "Pending..."
 
+def get_search_api_status() -> str:
+    """Returns HTML with green/red indicators for Tavily and SerpAPI keys."""
+    tavily_ok = bool(config.TAVILY_API_KEY) and not config.TAVILY_API_KEY.startswith("your_")
+    serpapi_ok = bool(config.SERPAPI_API_KEY) and not config.SERPAPI_API_KEY.startswith("your_")
+    items = []
+    if tavily_ok:
+        items.append("🟢 **Tavily** activa")
+    else:
+        items.append("🔴 **Tavily** sin configurar (límite alcanzado)")
+    if serpapi_ok:
+        items.append("🟢 **SerpAPI** activa (fallback)")
+    else:
+        items.append("🔴 **SerpAPI** sin configurar (sin fallback)")
+    return " · ".join(items)
+
 # Default search configurations
 DEFAULT_NICHES = [
     "Circus productions", "Touring theater", "Magic shows", "Ice shows", 
@@ -252,6 +267,7 @@ def refresh_dashboard(log_level="ALL", page=1, persona_filter="All", product_fil
     - **Current State**: {AGENT_STATUS}
     - **Last Run**: {LAST_RUN}
     - **Next Scheduled Run**: {NEXT_RUN}
+    - **Search APIs**: {get_search_api_status()}
     """
     
     persona_stats = repository.get_stats_by_persona()

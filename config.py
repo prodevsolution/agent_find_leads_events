@@ -13,6 +13,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # TAVILY API KEY FOR SEARCH
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
+# SERPAPI KEY (fallback when Tavily limit reached)
+SERPAPI_API_KEY = os.getenv("SERPAPI_API_KEY")
+
 # SEARCH CONFIGURATION
 _DEFAULT_EXCLUDE = "ticketmaster.com,seatgeek.com,vividseats.com,stubhub.com,eventbrite.com,facebook.com,10times.com,carnivalwarehouse.com,castatefair.com,sanjosetheaters.org,feverup.com"
 EXCLUDE_DOMAINS_STR = os.getenv("EXCLUDE_DOMAINS", _DEFAULT_EXCLUDE)
