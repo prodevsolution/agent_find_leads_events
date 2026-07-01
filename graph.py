@@ -237,7 +237,7 @@ def get_llm(model_override: str = None):
         return ChatOpenAI(model="gpt-4o-mini", temperature=0)
     else:
         logger.info("Using Google Gemini LLM (gemini-2.5-flash)")
-        return ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+        return ChatGoogleGenerativeAI(model="gemini-2.5-flash", max_retries=1)
 
 def _extract_json(text: str):
     """Extract JSON array or object from LLM text response."""
