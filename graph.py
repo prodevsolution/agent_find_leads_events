@@ -221,7 +221,7 @@ def get_llm(model_override: str = None):
     provider = config.LLM_PROVIDER
     if model_override and provider == "openai":
         logger.info(f"Using OpenAI LLM ({model_override})")
-        return ChatOpenAI(model=model_override, temperature=0)
+        return ChatOpenAI(model=model_override, temperature=0, max_retries=1)
     if provider == "ollama":
         logger.info(f"Using Ollama LLM with model: {config.OLLAMA_MODEL}")
         return ChatOllama(
@@ -234,7 +234,7 @@ def get_llm(model_override: str = None):
         )
     elif provider == "openai":
         logger.info("Using OpenAI LLM (gpt-4o-mini) [fast/cheap]")
-        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        return ChatOpenAI(model="gpt-4o-mini", temperature=0, max_retries=1)
     else:
         logger.info("Using Google Gemini LLM (gemini-2.5-flash)")
         return ChatGoogleGenerativeAI(model="gemini-2.5-flash", max_retries=1)
