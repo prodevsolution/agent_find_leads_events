@@ -24,7 +24,7 @@ EXCLUDE_DOMAINS = [d.strip() for d in EXCLUDE_DOMAINS_STR.split(",") if d.strip(
 # LLM CONFIGURATION
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").lower()
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL") or "phi4-mini"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL") or "llama3.2:3b"
 OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "60"))       # seconds per request
 OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "512"))  # max output tokens
 
